@@ -285,6 +285,10 @@
           <div class="flex flex-wrap items-center gap-2">
             <span id="lock-badge" class="text-xs font-semibold text-emerald-500 bg-emerald-500/10 border border-emerald-500/30 px-3 py-2 rounded-xl">🔓 Editando</span>
             <button id="btn-force-unlock" onclick="forceUnlockCurrentSong()" class="hidden th-input border border-amber-500 th-accent text-xs font-bold px-3 py-2 rounded-xl">🔓 Desbloquear</button>
+            <div class="inline-flex items-center th-input border rounded-xl p-0.5 text-xs font-bold">
+              <button id="btn-undo" type="button" onclick="undoSongChange()" disabled title="Deshacer (Ctrl+Z)" class="px-2.5 py-1.5 rounded-lg hover:bg-amber-500/15 disabled:opacity-35">↶</button>
+              <button id="btn-redo" type="button" onclick="redoSongChange()" disabled title="Rehacer (Ctrl+Y)" class="px-2.5 py-1.5 rounded-lg hover:bg-amber-500/15 disabled:opacity-35">↷</button>
+            </div>
             <button onclick="saveCurrentProject(true, true)" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-bold px-4 py-2 rounded-xl shadow-sm">💾 Guardar en Nube</button>
             <button onclick="createNewSong()" class="th-input border hover:border-amber-500 text-xs sm:text-sm font-semibold px-3.5 py-2 rounded-xl">✨ Tema Nuevo</button>
           </div>
@@ -1076,6 +1080,7 @@
         lockedBy: null,
         base: {
           chordsText: 'D5 - G - A - D5',
+          chordDurations: [1, 1, 1, 1],
           style: 'folk',
           timeSig: '4/4',
           bpm: 112,
@@ -1088,11 +1093,14 @@
     }
 
     function normalizeSectionShape(sec = {}, idx = 0) {
+      const chordsLen = splitChordsText(typeof sec.chordsText === 'string' ? sec.chordsText : 'D5 - G - A - D5').length;
+      const rawDurs = Array.isArray(sec.chordDurations) ? sec.chordDurations : [];
       return {
         id: sec.id || ('sec_' + Date.now() + '_' + idx),
         role: sec.role || 'Estrofa',
         name: sec.name || `${sec.role || 'Parte'} ${idx + 1}`,
         chordsText: typeof sec.chordsText === 'string' ? sec.chordsText : 'D5 - G - A - D5',
+        chordDurations: Array.from({ length: chordsLen }, (_, i) => Number(rawDurs[i]) || 1),
         style: sec.style || 'folk',
         timeSig: sec.timeSig || '4/4',
         bpm: Math.max(40, Math.min(260, Number(sec.bpm) || 112)),
@@ -1105,6 +1113,9 @@
 
     function normalizeSongShape(raw = {}) {
       const base = raw.base || {};
+      const baseText = typeof base.chordsText === 'string' ? base.chordsText : 'D5 - G - A - D5';
+      const baseLen = splitChordsText(baseText).length;
+      const rawDurs = Array.isArray(base.chordDurations) ? base.chordDurations : [];
       return {
         id: raw.id || ('song_' + Date.now()),
         title: (raw.title && String(raw.title).trim()) ? String(raw.title).trim() : 'Canción Sin Título',
@@ -1112,7 +1123,8 @@
         updatedAt: Number(raw.updatedAt) || Date.now(),
         lockedBy: raw.lockedBy || null,
         base: {
-          chordsText: typeof base.chordsText === 'string' ? base.chordsText : 'D5 - G - A - D5',
+          chordsText: baseText,
+          chordDurations: Array.from({ length: baseLen }, (_, i) => Number(rawDurs[i]) || 1),
           style: base.style || 'folk',
           timeSig: base.timeSig || '4/4',
           bpm: Math.max(40, Math.min(260, Number(base.bpm) || 112)),
@@ -1142,12 +1154,96 @@
       baseVoicingIdx: [],
       inspFilter: 'all',
       inspSeed: 0,
-      editingSectionIndex: -1
+      editingSectionIndex: -1,
+      undoStack: [],
+      redoStack: [],
+      isRestoringHistory: false
     };
 
     // =========================================================================
     // 3. ALMACENAMIENTO LOCAL, SINCRONIZACIÓN DRIVE Y UTILIDADES UI
     // =========================================================================
+    function getSongSnapshot() {
+      const clone = JSON.parse(JSON.stringify(state.song));
+      clone.takes = [];
+      return JSON.stringify(clone);
+    }
+
+    function updateHistoryButtons() {
+      const btnUndo = document.getElementById('btn-undo');
+      const btnRedo = document.getElementById('btn-redo');
+      if (btnUndo) btnUndo.disabled = state.undoStack.length <= 1;
+      if (btnRedo) btnRedo.disabled = state.redoStack.length === 0;
+    }
+
+    function recordSongHistory(reset = false) {
+      if (state.isRestoringHistory) return;
+      const snap = getSongSnapshot();
+      if (reset) {
+        state.undoStack = [snap];
+        state.redoStack = [];
+        updateHistoryButtons();
+        return;
+      }
+      const last = state.undoStack[state.undoStack.length - 1];
+      if (last !== snap) {
+        state.undoStack.push(snap);
+        if (state.undoStack.length > 60) state.undoStack.shift();
+        state.redoStack = [];
+        updateHistoryButtons();
+      }
+    }
+
+    function undoSongChange() {
+      if (state.undoStack.length <= 1) {
+        showToast('↶ Nada que deshacer');
+        return;
+      }
+      const currentSnap = state.undoStack.pop();
+      state.redoStack.push(currentSnap);
+      const prevSnap = state.undoStack[state.undoStack.length - 1];
+      const preservedTakes = state.song.takes || [];
+      state.isRestoringHistory = true;
+      state.song = normalizeSongShape(JSON.parse(prevSnap));
+      state.song.takes = preservedTakes;
+      applySongToUI();
+      saveLocalState();
+      state.isRestoringHistory = false;
+      updateHistoryButtons();
+      showToast('↶ Cambio deshecho (Ctrl+Z)');
+    }
+
+    function redoSongChange() {
+      if (!state.redoStack.length) {
+        showToast('↷ Nada que rehacer');
+        return;
+      }
+      const nextSnap = state.redoStack.pop();
+      state.undoStack.push(nextSnap);
+      const preservedTakes = state.song.takes || [];
+      state.isRestoringHistory = true;
+      state.song = normalizeSongShape(JSON.parse(nextSnap));
+      state.song.takes = preservedTakes;
+      applySongToUI();
+      saveLocalState();
+      state.isRestoringHistory = false;
+      updateHistoryButtons();
+      showToast('↷ Cambio rehecho (Ctrl+Y)');
+    }
+
+    document.addEventListener('keydown', (e) => {
+      const mod = e.ctrlKey || e.metaKey;
+      if (!mod) return;
+      const key = e.key.toLowerCase();
+      if (key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        undoSongChange();
+      } else if (key === 'y' || (key === 'z' && e.shiftKey)) {
+        e.preventDefault();
+        redoSongChange();
+      }
+    });
+
     let toastTimer = null;
     function showToast(msg) {
       const box = document.getElementById('toast-box');
@@ -1228,6 +1324,7 @@
 
     let autoSaveTimer = null;
     function scheduleAutoSave() {
+      recordSongHistory(false);
       saveLocalState();
       clearTimeout(autoSaveTimer);
       autoSaveTimer = setTimeout(() => {
@@ -2036,10 +2133,10 @@
 
         const bpm = Math.max(40, Math.min(260, Number(state.song.base.bpm) || 112));
         const timeSig = state.song.base.timeSig || '4/4';
-        const barsScale = Number(state.song.base.barsPerChord) || 1;
-        const barMs = getBarDurationMs(timeSig, bpm, barsScale);
+        const durScale = getBaseChordDurationAt(curIdx);
+        const barMs = getBarDurationMs(timeSig, bpm, durScale);
 
-        playBarRhythm(parsed, state.song.base.style, timeSig, bpm, state.baseVoicingIdx[curIdx] || 0, barsScale);
+        playBarRhythm(parsed, state.song.base.style, timeSig, bpm, state.baseVoicingIdx[curIdx] || 0, durScale);
         idx++;
         nextTickAt += barMs;
         const delay = Math.max(10, nextTickAt - performance.now());
@@ -2064,7 +2161,8 @@
         const reps = Math.max(1, Number(sec.repeats) || 1);
         for (let r = 0; r < reps; r++) {
           chords.forEach((ch, cIdx) => {
-            steps.push({ sec, sIdx, ch, cIdx, rep: r + 1, totalReps: reps });
+            const durScale = Array.isArray(sec.chordDurations) && sec.chordDurations[cIdx] ? Number(sec.chordDurations[cIdx]) : 1;
+            steps.push({ sec, sIdx, ch, cIdx, durScale, rep: r + 1, totalReps: reps });
           });
         }
       });
@@ -2099,7 +2197,7 @@
         if (teleEl) teleEl.classList.add('active-play');
 
         document.getElementById('atril-sec-lbl').textContent = `[${cur.sec.role.toUpperCase()}] ${cur.sec.name} • Vuelta ${cur.rep}/${cur.totalReps}`;
-        document.getElementById('atril-meta-lbl').textContent = `${cur.sec.timeSig} • ${cur.sec.bpm} BPM • ${cur.sec.style}`;
+        document.getElementById('atril-meta-lbl').textContent = `${cur.sec.timeSig} • ${cur.sec.bpm} BPM • ${cur.sec.style} • Dur: ${cur.durScale}`;
         document.getElementById('atril-chord-big').textContent = parsed ? parsed.display : cur.ch;
         document.getElementById('atril-next-lbl').textContent = next ? parseChordSymbol(next.ch).display : 'FIN';
         const frets = parsed && !parsed.isSilence ? (getChordVoicings(parsed)[0] || []) : [];
@@ -2107,9 +2205,10 @@
 
         const bpm = Math.max(40, Math.min(260, Number(cur.sec.bpm) || 112));
         const timeSig = cur.sec.timeSig || '4/4';
-        const barMs = getBarDurationMs(timeSig, bpm, 1);
+        const durScale = cur.durScale || 1;
+        const barMs = getBarDurationMs(timeSig, bpm, durScale);
 
-        playBarRhythm(parsed, cur.sec.style, timeSig, bpm, 0, 1);
+        playBarRhythm(parsed, cur.sec.style, timeSig, bpm, 0, durScale);
         ptr++;
         nextTickAt += barMs;
         const delay = Math.max(10, nextTickAt - performance.now());
@@ -2224,8 +2323,48 @@
 
     function onBaseInputChange() {
       state.song.base.chordsText = document.getElementById('base-chords-input').value;
+      syncBaseDurationsLength();
       renderBaseChords();
       renderInspirationList();
+      scheduleAutoSave();
+    }
+
+    function syncBaseDurationsLength() {
+      const chords = splitChordsText(state.song.base.chordsText);
+      if (!Array.isArray(state.song.base.chordDurations)) {
+        state.song.base.chordDurations = [];
+      }
+      while (state.song.base.chordDurations.length < chords.length) {
+        state.song.base.chordDurations.push(getNextComplementaryDuration(state.song.base.chordDurations));
+      }
+      state.song.base.chordDurations = state.song.base.chordDurations.slice(0, chords.length);
+    }
+
+    function getBaseChordDurationAt(idx) {
+      if (!Array.isArray(state.song.base.chordDurations)) return 1;
+      const val = Number(state.song.base.chordDurations[idx]);
+      return [0.25, 0.5, 0.75, 1].includes(val) ? val : 1;
+    }
+
+    function getNextComplementaryDuration(durationsArr) {
+      if (!Array.isArray(durationsArr) || !durationsArr.length) return 1;
+      let acc = 0;
+      for (const d of durationsArr) {
+        acc = Math.round((acc + (Number(d) || 1)) * 100) / 100;
+        if (acc >= 1) acc = Math.round((acc - Math.floor(acc)) * 100) / 100;
+      }
+      if (acc > 0 && acc < 1) {
+        const rem = Math.round((1 - acc) * 100) / 100;
+        if ([0.25, 0.5, 0.75].includes(rem)) return rem;
+      }
+      return 1;
+    }
+
+    function setBaseChordDurationAt(idx, rawVal) {
+      syncBaseDurationsLength();
+      const val = [0.25, 0.5, 0.75, 1].includes(Number(rawVal)) ? Number(rawVal) : 1;
+      state.song.base.chordDurations[idx] = val;
+      renderBaseChords();
       scheduleAutoSave();
     }
 
@@ -2259,6 +2398,7 @@
       if (quickSel && !quickSel.options.length) {
         quickSel.innerHTML = `<option value="">+ Añadir acorde...</option>` + buildChordOptionsHtml('');
       }
+      syncBaseDurationsLength();
       const chords = splitChordsText(state.song.base.chordsText);
       const first = parseChordSymbol(chords[0] || 'D');
       if (first && !first.isSilence) {
@@ -2273,6 +2413,8 @@
         const voicings = parsed && !parsed.isSilence ? getChordVoicings(parsed, 14) : [[]];
         const vIdx = (state.baseVoicingIdx[idx] || 0) % voicings.length;
         const frets = voicings[vIdx] || [];
+        const dur = getBaseChordDurationAt(idx);
+        const durLabel = String(dur).replace('.', ',');
         return `
           <div id="base-chord-card-${idx}" class="chord-pill-big text-center space-y-1.5">
             <div class="flex items-center justify-between text-xs">
@@ -2280,10 +2422,21 @@
               <span class="font-mono-code th-input px-1.5 py-0.5 rounded font-bold">${frets.length ? frets.join('-') : 'NC'}</span>
               <button onclick="removeBaseChordAt(${idx})" class="th-muted hover:text-rose-400 font-bold">✕</button>
             </div>
-            <select onchange="replaceBaseChordAt(${idx}, this.value)" class="w-full th-input border rounded-lg px-1.5 py-1 text-xs font-bold th-accent text-center">
-              ${buildChordOptionsHtml(ch)}
-            </select>
-            <div class="font-serif-title text-lg font-extrabold th-accent leading-tight">${parsed ? parsed.display : ch}</div>
+            <div class="grid grid-cols-12 gap-1">
+              <select onchange="replaceBaseChordAt(${idx}, this.value)" class="col-span-7 th-input border rounded-lg px-1 py-1 text-xs font-bold th-accent text-center">
+                ${buildChordOptionsHtml(ch)}
+              </select>
+              <select onchange="setBaseChordDurationAt(${idx}, this.value)" title="Duración en tiempos (1 = compás completo)" class="col-span-5 th-input border rounded-lg px-1 py-1 text-[11px] font-mono-code font-bold text-center ${dur < 1 ? 'border-amber-500 th-accent' : ''}">
+                <option value="1" ${dur === 1 ? 'selected' : ''}>1</option>
+                <option value="0.75" ${dur === 0.75 ? 'selected' : ''}>0,75</option>
+                <option value="0.5" ${dur === 0.5 ? 'selected' : ''}>0,5</option>
+                <option value="0.25" ${dur === 0.25 ? 'selected' : ''}>0,25</option>
+              </select>
+            </div>
+            <div class="font-serif-title text-lg font-extrabold th-accent leading-tight flex items-center justify-center gap-1.5">
+              <span>${parsed ? parsed.display : ch}</span>
+              ${dur < 1 ? `<span class="text-[10px] font-mono-code px-1.5 py-0.5 rounded bg-amber-500/20 border border-amber-500/40">${durLabel}t</span>` : ''}
+            </div>
             ${renderChordSvg(frets, true)}
             <div class="flex gap-1 pt-0.5">
               <button onclick="hearBaseChordAt(${idx})" class="flex-1 th-input border hover:border-amber-500 text-[11px] font-bold py-1 rounded-lg">🔊 Oír</button>
@@ -2348,6 +2501,9 @@
       const chords = splitChordsText(state.song.base.chordsText);
       chords.splice(idx, 1);
       state.baseVoicingIdx.splice(idx, 1);
+      if (Array.isArray(state.song.base.chordDurations)) {
+        state.song.base.chordDurations.splice(idx, 1);
+      }
       state.song.base.chordsText = chords.join(' - ');
       document.getElementById('base-chords-input').value = state.song.base.chordsText;
       renderBaseChords();
@@ -2356,8 +2512,11 @@
 
     function appendQuickChordFromSelect(sel) {
       if (!sel.value) return;
+      syncBaseDurationsLength();
       const chords = splitChordsText(state.song.base.chordsText);
+      const nextDur = getNextComplementaryDuration(state.song.base.chordDurations);
       chords.push(sel.value);
+      state.song.base.chordDurations.push(nextDur);
       state.song.base.chordsText = chords.join(' - ');
       document.getElementById('base-chords-input').value = state.song.base.chordsText;
       hearSingleChord(sel.value);
@@ -2367,8 +2526,11 @@
     }
 
     function insertSilenceToBase() {
+      syncBaseDurationsLength();
       const chords = splitChordsText(state.song.base.chordsText);
+      const nextDur = getNextComplementaryDuration(state.song.base.chordDurations);
       chords.push('NC');
+      state.song.base.chordDurations.push(nextDur);
       state.song.base.chordsText = chords.join(' - ');
       document.getElementById('base-chords-input').value = state.song.base.chordsText;
       renderBaseChords();
@@ -2378,10 +2540,12 @@
     function addBaseToStructure() {
       const role = document.getElementById('base-role-select').value;
       const countSame = state.song.structure.filter(s => s.role === role).length + 1;
+      syncBaseDurationsLength();
       state.song.structure.push(normalizeSectionShape({
         role,
         name: `${role} ${countSame}`,
         chordsText: state.song.base.chordsText,
+        chordDurations: [...state.song.base.chordDurations],
         style: state.song.base.style,
         timeSig: state.song.base.timeSig,
         bpm: state.song.base.bpm,
@@ -2409,10 +2573,12 @@
 
     function saveBaseToBank() {
       const role = document.getElementById('base-role-select').value;
+      syncBaseDurationsLength();
       state.song.bank.unshift(normalizeSectionShape({
         role,
         name: `${role} guardada`,
         chordsText: state.song.base.chordsText,
+        chordDurations: [...state.song.base.chordDurations],
         style: state.song.base.style,
         timeSig: state.song.base.timeSig,
         bpm: state.song.base.bpm,
@@ -2460,9 +2626,13 @@
               ${chords.map((ch, cIdx) => {
                 const parsed = parseChordSymbol(ch);
                 const frets = parsed && !parsed.isSilence ? (getChordVoicings(parsed)[0] || []) : [];
+                const dur = Array.isArray(sec.chordDurations) && sec.chordDurations[cIdx] ? Number(sec.chordDurations[cIdx]) : 1;
                 return `
                   <div id="struct-chord-${sIdx}-${cIdx}" onclick="hearSingleChord('${ch}')" class="struct-chord-card th-card border rounded-xl p-2 text-center cursor-pointer hover:border-amber-500">
-                    <div class="font-serif-title text-sm font-extrabold th-accent mb-0.5">${parsed ? parsed.display : ch}</div>
+                    <div class="font-serif-title text-sm font-extrabold th-accent mb-0.5 flex items-center justify-center gap-1">
+                      <span>${parsed ? parsed.display : ch}</span>
+                      ${dur < 1 ? `<span class="text-[9px] font-mono-code px-1 rounded bg-amber-500/20">${String(dur).replace('.', ',')}</span>` : ''}
+                    </div>
                     ${renderChordSvg(frets, true)}
                   </div>
                 `;
@@ -2497,6 +2667,7 @@
       const sec = state.song.structure[idx];
       if (!sec) return;
       state.song.base.chordsText = sec.chordsText;
+      state.song.base.chordDurations = Array.isArray(sec.chordDurations) ? [...sec.chordDurations] : [];
       state.song.base.style = sec.style;
       state.song.base.timeSig = sec.timeSig;
       state.song.base.bpm = sec.bpm;
@@ -3079,8 +3250,11 @@
     function addDetectedChordToBase() {
       const name = document.getElementById('detected-chord-name').textContent.trim();
       if (!name) return;
+      syncBaseDurationsLength();
       const chords = splitChordsText(state.song.base.chordsText);
+      const nextDur = getNextComplementaryDuration(state.song.base.chordDurations);
       chords.push(name);
+      state.song.base.chordDurations.push(nextDur);
       state.song.base.chordsText = chords.join(' - ');
       document.getElementById('base-chords-input').value = state.song.base.chordsText;
       renderBaseChords();
@@ -3564,6 +3738,7 @@
       state.song = createEmptySong();
       state.readOnlyLock = false;
       applySongToUI();
+      recordSongHistory(true);
       saveLocalState();
       showToast('✨ Tema nuevo creado');
     }
@@ -3663,6 +3838,7 @@
       stopAllPlayback();
       state.song = normalizeSongShape(JSON.parse(JSON.stringify(found)));
       applySongToUI();
+      recordSongHistory(true);
       saveLocalState();
       closeSongsModal();
       showToast(`📂 Abierta: ${state.song.title}`);
@@ -3868,6 +4044,7 @@
         openUserModal();
       }
       applySongToUI();
+      recordSongHistory(true);
       renderChordDictionary();
       saveLocalState();
       syncProjectsFromCloud(false);
