@@ -2415,6 +2415,12 @@
     function setCloudBadge(ok, text) {
       const el = document.getElementById('cloud-status-badge');
       if (!el) return;
+      el.className = ok
+        ? 'inline-flex items-center gap-1.5 font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded-full'
+        : 'inline-flex items-center gap-1.5 font-semibold text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded-full';
+      el.innerHTML = `<span class="w-2 h-2 rounded-full ${ok ? 'bg-emerald-400' : 'bg-amber-400'}"></span> ${text}`;
+    }
+
     let workingDriveMode = localStorage.getItem('billy_mugre_drive_mode') || '';
 
     async function fetchDriveProjectsFast(mode) {
