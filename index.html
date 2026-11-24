@@ -328,6 +328,7 @@
           <select id="base-style-select" onchange="onBaseConfigChange(true)" class="sm:col-span-3 th-input border rounded-xl px-2.5 py-2.5 text-sm font-semibold">
             <option value="folk">🪕 Folk Boom-Chick</option>
             <option value="bumditty">🪕 Ban-Ditty</option>
+            <option value="gallop">🐎 Galope a Caballo</option>
             <option value="country">🤠 Country Train</option>
             <option value="swing">🎷 Swing Atresillado</option>
             <option value="foxtrot">🎩 Foxtrot Vintage</option>
@@ -887,6 +888,7 @@
           <select id="se-style" class="w-full th-input border rounded-xl px-2 py-2 text-xs font-semibold mt-1">
             <option value="folk">Folk Boom-Chick</option>
             <option value="bumditty">Ban-Ditty</option>
+            <option value="gallop">Galope a Caballo</option>
             <option value="country">Country Train</option>
             <option value="swing">Swing</option>
             <option value="foxtrot">Foxtrot</option>
@@ -1131,6 +1133,7 @@
       dictRoot: 'D',
       dictType: 'all',
       detectorFrets: [0, 0, 0, 0],
+      baseVoicingIdx: [],
       inspFilter: 'all',
       inspSeed: 0,
       editingSectionIndex: -1
@@ -1439,9 +1442,14 @@
 
           const notesHit = new Set(current.map((f, i) => (openIndices[i] + f) % 12));
           const coverage = parsedChord.intervals.filter(iv => notesHit.has((parsedChord.rootIdx + iv) % 12)).length;
+          // Penalizar fuertemente si falta la 3ª (mayor=4 o menor=3) o la 5ª/7ª del acorde
+          const hasThird = parsedChord.intervals.some(iv => (iv === 3 || iv === 4) && notesHit.has((parsedChord.rootIdx + iv) % 12));
+          const requiresSeventh = parsedChord.intervals.includes(10) || parsedChord.intervals.includes(11);
+          const hasSeventh = parsedChord.intervals.some(iv => (iv === 10 || iv === 11) && notesHit.has((parsedChord.rootIdx + iv) % 12));
           const minFret = nonZero.length ? Math.min(...nonZero) : 0;
           const isRootBass = ((openIndices[0] + current[0]) % 12) === parsedChord.rootIdx;
-          const score = coverage * 30 - span * 3 - minFret * 1.5 + (isRootBass ? 8 : 0);
+          const seventhBonus = requiresSeventh ? (hasSeventh ? 55 : -65) : 0;
+          const score = coverage * 45 + (hasThird ? 28 : 0) + seventhBonus - span * 3 - minFret * 1.5 + (isRootBass ? 10 : 0);
           candidates.push({ frets: [...current], score, minFret });
           return;
         }
@@ -1478,37 +1486,37 @@
       const minFret = nonZero.length ? Math.min(...nonZero) : 1;
       const baseFret = maxFret > 4 ? minFret : 1;
 
-      const w = Math.max(76, numStrings * 16 + 16);
-      const h = compact ? 62 : 72;
-      const leftPad = 14;
+      const leftPad = baseFret > 1 ? 26 : 14;
+      const w = Math.max(96, numStrings * 18 + leftPad + 12);
+      const h = compact ? 84 : 96;
       const rightPad = w - 12;
       const stepX = numStrings > 1 ? (rightPad - leftPad) / (numStrings - 1) : 0;
-      const topY = 14;
-      const fretH = compact ? 11 : 13;
+      const topY = 16;
+      const fretH = compact ? 15 : 18;
 
-      let svg = `<svg viewBox="0 0 ${w} ${h}" class="${compact ? 'w-14' : 'w-20'} mx-auto block">`;
+      let svg = `<svg viewBox="0 0 ${w} ${h}" class="${compact ? 'w-24 sm:w-28' : 'w-28 sm:w-32'} mx-auto block">`;
       if (baseFret === 1) {
-        svg += `<line x1="${leftPad}" y1="${topY}" x2="${rightPad}" y2="${topY}" stroke="var(--nut-stroke)" stroke-width="3.2" />`;
+        svg += `<line x1="${leftPad}" y1="${topY}" x2="${rightPad}" y2="${topY}" stroke="var(--nut-stroke)" stroke-width="3.6" />`;
       } else {
-        svg += `<text x="2" y="${topY + fretH * 0.8}" font-size="8" fill="var(--accent)" font-family="monospace" font-weight="bold">${baseFret}fr</text>`;
+        svg += `<text x="${leftPad - 4}" y="${topY + fretH * 0.72}" text-anchor="end" font-size="11.5" fill="var(--accent)" font-family="ui-monospace, monospace" font-weight="800">${baseFret}fr</text>`;
       }
 
       for (let r = 0; r <= 4; r++) {
         const y = topY + r * fretH;
-        svg += `<line x1="${leftPad}" y1="${y}" x2="${rightPad}" y2="${y}" stroke="var(--fret-stroke)" stroke-width="1.1" />`;
+        svg += `<line x1="${leftPad}" y1="${y}" x2="${rightPad}" y2="${y}" stroke="var(--fret-stroke)" stroke-width="1.25" />`;
       }
 
       for (let s = 0; s < numStrings; s++) {
         const x = leftPad + s * stepX;
-        svg += `<line x1="${x}" y1="${topY}" x2="${x}" y2="${topY + 4 * fretH}" stroke="var(--string-stroke)" stroke-width="1.3" />`;
+        svg += `<line x1="${x}" y1="${topY}" x2="${x}" y2="${topY + 4 * fretH}" stroke="var(--string-stroke)" stroke-width="1.4" />`;
         const f = frets[s] || 0;
         if (f === 0) {
-          svg += `<circle cx="${x}" cy="${topY - 6}" r="2.5" fill="none" stroke="#22c55e" stroke-width="1.6" />`;
+          svg += `<circle cx="${x}" cy="${topY - 7}" r="3.2" fill="none" stroke="#22c55e" stroke-width="1.8" />`;
         } else {
           const rel = f - baseFret + 1;
           if (rel >= 1 && rel <= 4) {
             const cy = topY + (rel - 0.5) * fretH;
-            svg += `<circle cx="${x}" cy="${cy}" r="4.2" fill="var(--accent)" />`;
+            svg += `<circle cx="${x}" cy="${cy}" r="5.2" fill="var(--accent)" />`;
           }
         }
       }
@@ -1520,477 +1528,225 @@
     // 5. MOTOR ACÚSTICO POR MODELADO FÍSICO (KARPLUS-STRONG + RESONANCIA DE CAJA)
     // =========================================================================
     let audioCtx = null;
-    let masterCompressor = null;
-    let bodyConvolver = null;
-
-    function createAcousticBodyImpulse(ctx) {
-      // Impulso corto de caja de resonancia (parche de banjolele / madera acústica)
-      const length = Math.floor(ctx.sampleRate * 0.14);
-      const impulse = ctx.createBuffer(2, length, ctx.sampleRate);
-      for (let ch = 0; ch < 2; ch++) {
-        const data = impulse.getChannelData(ch);
-        for (let i = 0; i < length; i++) {
-          const t = i / ctx.sampleRate;
-          const env = Math.exp(-t * 36);
-          const woodRes = Math.sin(2 * Math.PI * 195 * t) * 0.35 + Math.sin(2 * Math.PI * 420 * t) * 0.25;
-          const air = (Math.random() * 2 - 1) * 0.4;
-          data[i] = (woodRes + air) * env * 0.55;
-        }
-      }
-      return impulse;
-    }
-
     async function unlockAudioCtx() {
-      if (!audioCtx) {
-        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-        if (AudioContextClass) {
-          audioCtx = new AudioContextClass();
-          masterCompressor = audioCtx.createDynamicsCompressor();
-          masterCompressor.threshold.setValueAtTime(-16, audioCtx.currentTime);
-          masterCompressor.knee.setValueAtTime(18, audioCtx.currentTime);
-          masterCompressor.ratio.setValueAtTime(3.5, audioCtx.currentTime);
-          masterCompressor.attack.setValueAtTime(0.004, audioCtx.currentTime);
-          masterCompressor.release.setValueAtTime(0.16, audioCtx.currentTime);
-
-          bodyConvolver = audioCtx.createConvolver();
-          bodyConvolver.buffer = createAcousticBodyImpulse(audioCtx);
-          const wetGain = audioCtx.createGain();
-          wetGain.gain.setValueAtTime(0.24, audioCtx.currentTime);
-
-          bodyConvolver.connect(wetGain);
-          wetGain.connect(masterCompressor);
-          masterCompressor.connect(audioCtx.destination);
-        }
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextClass) return null;
+      if (!audioCtx || audioCtx.state === 'closed') {
+        audioCtx = new AudioContextClass();
       }
-      if (audioCtx && audioCtx.state === 'suspended') {
+      if (audioCtx.state === 'suspended') {
         await audioCtx.resume();
       }
+      return audioCtx;
     }
 
-    function getInstrumentAcousticProfile() {
-      const inst = state.inst || 'banjolele';
-      const profiles = {
-        banjolele: { damping: 0.986, brightness: 0.72, bodyFreq: 1950, bodyQ: 2.2, bodyGain: 5.5, pluckPos: 0.24, doubleCourse: false },
-        banjo:     { damping: 0.988, brightness: 0.78, bodyFreq: 2150, bodyQ: 2.4, bodyGain: 6.5, pluckPos: 0.20, doubleCourse: false },
-        guitar:    { damping: 0.994, brightness: 0.52, bodyFreq: 165,  bodyQ: 1.4, bodyGain: 4.5, pluckPos: 0.30, doubleCourse: false },
-        mandolin:  { damping: 0.989, brightness: 0.75, bodyFreq: 1650, bodyQ: 1.8, bodyGain: 4.5, pluckPos: 0.22, doubleCourse: true },
-        ukulele:   { damping: 0.990, brightness: 0.40, bodyFreq: 320,  bodyQ: 1.6, bodyGain: 4.0, pluckPos: 0.35, doubleCourse: false },
-        dulcimer:  { damping: 0.992, brightness: 0.68, bodyFreq: 1250, bodyQ: 1.9, bodyGain: 4.5, pluckPos: 0.25, doubleCourse: true },
-        bass:      { damping: 0.995, brightness: 0.28, bodyFreq: 95,   bodyQ: 1.5, bodyGain: 6.0, pluckPos: 0.38, doubleCourse: false }
-      };
-      return profiles[inst] || profiles.banjolele;
-    }
+    function playPluckNote(freq, delaySec = 0, durationSec = 0.85, gainVal = 0.18) {
+      if (!freq || !isFinite(freq)) return;
+      unlockAudioCtx().then(ctx => {
+        if (!ctx) return;
+        const now = ctx.currentTime + Math.max(0, delaySec);
+        const sr = ctx.sampleRate;
+        const inst = state.inst || 'banjolele';
 
-    function renderKarplusStrongBuffer(ctx, freq, durationSec, profile, detuneCents = 0) {
-      const sr = ctx.sampleRate;
-      const effectiveFreq = Math.max(36, Math.min(2400, freq * Math.pow(2, detuneCents / 1200)));
-      const period = Math.max(2, Math.round(sr / effectiveFreq));
-      const totalSamples = Math.max(period + 4, Math.floor(sr * Math.min(2.6, durationSec + 0.15)));
-      const buf = ctx.createBuffer(1, totalSamples, sr);
-      const out = buf.getChannelData(0);
+        const isPercussiveHead = inst === 'banjolele' || inst === 'banjo';
+        const isDoubleCourse = inst === 'mandolin' || inst === 'dulcimer';
+        const isWarmNylon = inst === 'ukulele';
+        const isBass = inst === 'bass';
 
-      // Excitación inicial de púa/dedo con filtro peine de posición de pulsación
-      const delayLine = new Float32Array(period);
-      const pluckDelay = Math.max(1, Math.floor(period * profile.pluckPos));
-      const rawNoise = new Float32Array(period);
-      for (let i = 0; i < period; i++) {
-        rawNoise[i] = Math.random() * 2 - 1;
-      }
-      let prevInit = 0;
-      for (let i = 0; i < period; i++) {
-        const comb = rawNoise[i] - 0.65 * rawNoise[(i - pluckDelay + period) % period];
-        prevInit = profile.brightness * comb + (1 - profile.brightness) * prevInit;
-        delayLine[i] = prevInit;
-      }
+        const effectiveDur = isPercussiveHead ? Math.min(durationSec, 0.58)
+          : isBass ? Math.max(durationSec, 0.95)
+          : Math.max(durationSec, 0.78);
 
-      // Bucle de propagación de onda con amortiguación dependiente de frecuencia
-      const freqComp = Math.pow(profile.damping, 220 / Math.max(90, effectiveFreq));
-      const damp = Math.min(0.9975, Math.max(0.965, freqComp));
-      const blend = 0.5 + (profile.brightness - 0.5) * 0.24;
+        const totalSamples = Math.max(128, Math.floor(sr * effectiveDur));
+        const buffer = ctx.createBuffer(1, totalSamples, sr);
+        const out = buffer.getChannelData(0);
 
-      let ptr = 0;
-      for (let i = 0; i < totalSamples; i++) {
-        const nextPtr = (ptr + 1) % period;
-        const sample = delayLine[ptr];
-        out[i] = sample;
-        const filtered = (blend * sample + (1 - blend) * delayLine[nextPtr]) * damp;
-        delayLine[ptr] = filtered;
-        ptr = nextPtr;
-      }
-      return buf;
-    }
+        const damping = isPercussiveHead ? 0.9915
+          : isWarmNylon ? 0.9935
+          : isBass ? 0.9968
+          : 0.9952;
 
-    function playPluckNote(freq, delaySec = 0, durationSec = 0.7, gainVal = 0.22) {
-      if (!audioCtx || !masterCompressor) return;
-      const now = audioCtx.currentTime + delaySec;
-      const profile = getInstrumentAcousticProfile();
+        const pickBright = isPercussiveHead ? 0.88
+          : isDoubleCourse ? 0.85
+          : isWarmNylon ? 0.42
+          : isBass ? 0.35
+          : 0.68;
 
-      const triggerString = (detuneCents, ampScale) => {
-        const src = audioCtx.createBufferSource();
-        src.buffer = renderKarplusStrongBuffer(audioCtx, freq, durationSec, profile, detuneCents);
+        const voices = isDoubleCourse
+          ? [freq * Math.pow(2, -3.2 / 1200), freq * Math.pow(2, 3.2 / 1200)]
+          : [freq];
 
-        const bodyFilter = audioCtx.createBiquadFilter();
-        bodyFilter.type = 'peaking';
-        bodyFilter.frequency.setValueAtTime(profile.bodyFreq, now);
-        bodyFilter.Q.setValueAtTime(profile.bodyQ, now);
-        bodyFilter.gain.setValueAtTime(profile.bodyGain, now);
+        voices.forEach(vFreq => {
+          const period = Math.max(2, Math.round(sr / vFreq));
+          const ring = new Float32Array(period);
+          let prev = 0;
+          for (let i = 0; i < period; i++) {
+            const white = Math.random() * 2 - 1;
+            prev = pickBright * white + (1 - pickBright) * prev;
+            ring[i] = prev;
+          }
+          let ptr = 0;
+          const voiceGain = 1 / voices.length;
+          for (let n = 0; n < totalSamples; n++) {
+            const nextPtr = (ptr + 1) % period;
+            const s0 = ring[ptr];
+            const s1 = ring[nextPtr];
+            out[n] += s0 * voiceGain;
+            ring[ptr] = 0.5 * (s0 + s1) * damping;
+            ptr = nextPtr;
+          }
+        });
 
-        const lowCut = audioCtx.createBiquadFilter();
-        lowCut.type = 'highpass';
-        lowCut.frequency.setValueAtTime(state.inst === 'bass' ? 35 : 75, now);
+        const src = ctx.createBufferSource();
+        src.buffer = buffer;
 
-        const gain = audioCtx.createGain();
-        const peakGain = Math.min(0.45, gainVal * ampScale * 1.45);
-        gain.gain.setValueAtTime(0.0001, now);
-        gain.gain.linearRampToValueAtTime(peakGain, now + 0.006);
-        gain.gain.setValueAtTime(peakGain * 0.92, now + Math.max(0.03, durationSec * 0.65));
-        gain.gain.exponentialRampToValueAtTime(0.0001, now + durationSec + 0.08);
+        const bodyFilter = ctx.createBiquadFilter();
+        if (isPercussiveHead) {
+          bodyFilter.type = 'peaking';
+          bodyFilter.frequency.value = 1950;
+          bodyFilter.Q.value = 2.4;
+          bodyFilter.gain.value = 6.5;
+        } else if (isBass) {
+          bodyFilter.type = 'lowpass';
+          bodyFilter.frequency.value = 620;
+          bodyFilter.Q.value = 1.2;
+        } else if (isWarmNylon) {
+          bodyFilter.type = 'lowpass';
+          bodyFilter.frequency.value = 2600;
+          bodyFilter.Q.value = 0.8;
+        } else {
+          bodyFilter.type = 'peaking';
+          bodyFilter.frequency.value = 210;
+          bodyFilter.Q.value = 1.4;
+          bodyFilter.gain.value = 4.5;
+        }
 
-        src.connect(lowCut);
-        lowCut.connect(bodyFilter);
-        bodyFilter.connect(gain);
-        gain.connect(masterCompressor);
-        if (bodyConvolver) gain.connect(bodyConvolver);
+        const amp = ctx.createGain();
+        const peak = gainVal * (isBass ? 1.55 : isPercussiveHead ? 1.22 : 1.15);
+        amp.gain.setValueAtTime(0.0001, now);
+        amp.gain.linearRampToValueAtTime(peak, now + 0.006);
+        amp.gain.exponentialRampToValueAtTime(0.0001, now + effectiveDur);
 
+        src.connect(bodyFilter);
+        bodyFilter.connect(amp);
+        amp.connect(ctx.destination);
         src.start(now);
-        src.stop(now + durationSec + 0.1);
-      };
-
-      if (profile.doubleCourse) {
-        triggerString(-3.5, 0.62);
-        triggerString(3.5, 0.62);
-      } else {
-        triggerString(0, 1.0);
-      }
-    }
-
-    function playClickSound(accent = false) {
-      if (!audioCtx || !masterCompressor) return;
-      const now = audioCtx.currentTime;
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(accent ? 1320 : 880, now);
-      osc.frequency.exponentialRampToValueAtTime(accent ? 540 : 390, now + 0.045);
-      gain.gain.setValueAtTime(accent ? 0.28 : 0.16, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.055);
-      osc.connect(gain);
-      gain.connect(masterCompressor);
-      osc.start(now);
-      osc.stop(now + 0.065);
-    }
-
-    function playChordStrum(parsedChord, delaySec = 0, durationSec = 0.65, gainVal = 0.22, muted = false, upstroke = false) {
-      if (!parsedChord || parsedChord.isSilence || !audioCtx) return;
-      const strings = getCurrentTuningStrings();
-      const frets = getChordVoicings(parsedChord)[0] || strings.map(() => 0);
-      const dur = muted ? 0.085 : durationSec;
-      const strumSpread = muted ? 0.006 : (upstroke ? 0.014 : 0.024);
-      const indices = strings.map((_, i) => i);
-      if (upstroke) indices.reverse();
-
-      indices.forEach((strIdx, orderIdx) => {
-        // En rasgueos hacia arriba (upstroke) priorizamos las 3 cuerdas más agudas para que se distinga claramente del golpe hacia abajo
-        if (upstroke && strings.length >= 4 && orderIdx >= 3) return;
-        const f = frets[strIdx] || 0;
-        const freq = noteNameToFreq(strings[strIdx]) * Math.pow(2, f / 12);
-        const accentBoost = upstroke ? 1.15 : 1.0;
-        playPluckNote(freq, delaySec + orderIdx * strumSpread, dur, (gainVal * accentBoost) / Math.sqrt(strings.length));
+        src.stop(now + effectiveDur + 0.02);
       });
     }
 
-    function playPercussiveMute(delaySec = 0, gainVal = 0.16) {
-      if (!audioCtx || !masterCompressor) return;
-      const now = audioCtx.currentTime + delaySec;
-      const len = Math.floor(audioCtx.sampleRate * 0.045);
-      const buf = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
-      const data = buf.getChannelData(0);
-      for (let i = 0; i < len; i++) {
-        data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (len * 0.28));
-      }
-      const src = audioCtx.createBufferSource();
-      src.buffer = buf;
-      const filter = audioCtx.createBiquadFilter();
-      filter.type = 'bandpass';
-      filter.frequency.setValueAtTime(1400, now);
-      filter.Q.setValueAtTime(1.6, now);
-      const g = audioCtx.createGain();
-      g.gain.setValueAtTime(gainVal, now);
-      g.gain.exponentialRampToValueAtTime(0.001, now + 0.045);
-      src.connect(filter);
-      filter.connect(g);
-      g.connect(masterCompressor);
-      src.start(now);
+    function playPercussiveMute(delaySec = 0, gainVal = 0.14) {
+      unlockAudioCtx().then(ctx => {
+        if (!ctx) return;
+        const now = ctx.currentTime + Math.max(0, delaySec);
+        const len = Math.floor(ctx.sampleRate * 0.055);
+        const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+        const data = buf.getChannelData(0);
+        for (let i = 0; i < len; i++) {
+          data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (len * 0.25));
+        }
+        const src = ctx.createBufferSource();
+        src.buffer = buf;
+
+        const bp = ctx.createBiquadFilter();
+        bp.type = 'bandpass';
+        bp.frequency.value = 1350;
+        bp.Q.value = 1.6;
+
+        const gain = ctx.createGain();
+        gain.gain.setValueAtTime(gainVal, now);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.055);
+
+        src.connect(bp);
+        bp.connect(gain);
+        gain.connect(ctx.destination);
+        src.start(now);
+      });
     }
 
-    function playBassRoot(parsedChord, delaySec = 0, durationSec = 0.45, gainVal = 0.26) {
-      if (!parsedChord || parsedChord.isSilence || !audioCtx) return;
+    function playClickSound(accent = false, delaySec = 0) {
+      unlockAudioCtx().then(ctx => {
+        if (!ctx) return;
+        const now = ctx.currentTime + Math.max(0, delaySec);
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(accent ? 1250 : 840, now);
+        osc.frequency.exponentialRampToValueAtTime(220, now + 0.045);
+
+        gain.gain.setValueAtTime(accent ? 0.24 : 0.14, now);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.05);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.055);
+      });
+    }
+
+    function playChordStrum(parsedChord, delaySec = 0, durationSec = 0.65, gainVal = 0.16, upstroke = false, staccato = false, voicingIdx = 0) {
+      if (!parsedChord || parsedChord.isSilence) return;
+      const strings = getCurrentTuningStrings();
+      const voicings = getChordVoicings(parsedChord, 14);
+      const frets = voicings[voicingIdx % voicings.length] || voicings[0] || strings.map(() => 0);
+      const dur = staccato ? Math.min(durationSec, 0.22) : durationSec;
+      const order = upstroke ? [...strings.keys()].reverse() : [...strings.keys()];
+
+      order.forEach((sIdx, step) => {
+        const f = frets[sIdx] || 0;
+        const freq = noteNameToFreq(strings[sIdx]) * Math.pow(2, f / 12);
+        const g = upstroke ? gainVal * (step < 3 ? 1.05 : 0.72) : gainVal;
+        playPluckNote(freq, delaySec + step * 0.018, dur, g);
+      });
+    }
+
+    function playBassRoot(parsedChord, delaySec = 0, durationSec = 0.45, gainVal = 0.2) {
+      if (!parsedChord || parsedChord.isSilence) return;
+      const rootName = parsedChord.rootName || 'D';
       const oct = state.inst === 'bass' ? '2' : '3';
-      const freq = noteNameToFreq(parsedChord.rootName + oct);
-      playPluckNote(freq, delaySec, durationSec, gainVal);
+      playPluckNote(noteNameToFreq(rootName + oct), delaySec, durationSec, gainVal);
     }
 
-    function playBassFifth(parsedChord, delaySec = 0, durationSec = 0.4, gainVal = 0.24) {
-      if (!parsedChord || parsedChord.isSilence || !audioCtx) return;
-      const fifthName = indexToNote(parsedChord.rootIdx + 7);
+    function playBassFifth(parsedChord, delaySec = 0, durationSec = 0.45, gainVal = 0.18) {
+      if (!parsedChord || parsedChord.isSilence) return;
+      const fifthIv = parsedChord.intervals.includes(7) ? 7 : (parsedChord.intervals[1] || 7);
+      const fifthName = indexToNote(parsedChord.rootIdx + fifthIv);
       const oct = state.inst === 'bass' ? '2' : '3';
-      const freq = noteNameToFreq(fifthName + oct);
-      playPluckNote(freq, delaySec, durationSec, gainVal);
+      playPluckNote(noteNameToFreq(fifthName + oct), delaySec, durationSec, gainVal);
     }
 
+    // =========================================================================
+    // 6. REPRODUCTOR RÍTMICO, METRÓNOMO GLOBAL Y RENDERIZADO DEL COMPOSITOR
+    // =========================================================================
     const STYLE_PATTERNS_INFO = {
       folk: '1 (Bajo I) • 2 (Rasgueo ↓) • 3 (Bajo V) • 4 (Rasgueo ↓)',
-      bumditty: '1 (Bajo) • 2 (Ditty ↓) • 2y (Pulgar arriba ↑) • 3 (Bajo V) • 4-4y',
-      country: '1 (Bajo I) • 1y (Tren ↑) • 2 (Bajo V) • 2y (Tren ↑) — Train Beat',
-      swing: '1 (Bajo) • 2 (Chop seco) • 2⅔ (Tresillo ↑) • 3 (Bajo V) • 4-4⅔',
-      foxtrot: '1-2 (Paso largo bajo) • 3 (Paso rápido V) • 4 (Rasgueo elegante)',
-      circus: '1 (Tuba I) • 1y (Platillo/Chop ↑) • 2 (Tuba V) • 2y (Chop ↑)',
-      gypsy: '1 (Pompe apagada) • 2 (ACENTO SECO ↑) • 3 (Pompe) • 4 (ACENTO SECO ↑)',
-      ragtime: '1 (Stride I) • 1y (Síncopa ↑) • 2 (Stride V) • 2y (Chop)',
-      polka: '1 (Salto grave I) • 2 (Golpe arriba ↑) • 3 (Salto V) • 4 (Arriba ↑)',
-      offbeat: '1 (Silencio) • 1y (CONTRA ↑) • 2 (Silencio) • 2y (CONTRA ↑)',
-      reggae: '1 (Bajo profundo) • 2 (Skank doble ↑↓) • 3 (Bajo) • 4 (Skank ↑↓)',
-      punkfolk: '1 (Bajo I) • 1y (CONTRA ABIERTA ↑) • 2 (Bajo V) • 2y (CONTRA ↑)',
-      cumbia: '1 (Bajo grave) • 1y (Contra ↑) • 2 (Bajo) • 2y (Contra V)',
-      bluegrass: '1 (Bajo I) • 2 (CHOP SECO!) • 3 (Bajo V) • 4 (CHOP SECO!)',
-      strum: '1 (Rasgueo largo ↓) • 2y (↑) • 3y (↓) • 4y (↑) — Balada abierta',
-      arpeggio: '1-1y-2-2y-3-3y-4-4y — Cuerda por cuerda en corcheas',
-      quarterMute: '1 (Chasquido) • 2 (Chasquido) • 3 (Chasquido) • 4 (Chasquido)',
-      quarterPower: '1 (ACENTO ↓) • 2 (↓) • 3 (Fuerte ↓) • 4 (↓)',
-      waltz: '1 (Bajo I) • 2 (Valseteo ↑) • 3 (Valseteo ↑) — Compás 3/4',
-      jig: '1-2-3 (Bajo + trote) • 4-5-6 (Bajo + trote) — Compás 6/8'
+      bumditty: '1 (Bajo) • 2 (Rasgueo ↓) • 2y (Pulgar arriba ↑)',
+      gallop: '1 (Galope TA-ta-ta) • 2 (TA-ta-ta) • 3 (TA-ta-ta) • 4 (TA-ta-ta)',
+      country: '1 (Bajo I) • 1y (↑) • 2 (Caja ↓) • 2y (↑) • 3 (Bajo V) • 4 (Caja ↓)',
+      swing: '1 (Bajo) • 2 (Acorde swing) • 2y (Atresillado ↑) • 3 (Bajo) • 4 (Acorde)',
+      foxtrot: '1-2 (Paso largo) • 3 (Paso corto) • 4 (Paso corto ↑)',
+      circus: '1 (Tuba I) • 1y (Platillo seco) • 2 (Tuba V) • 2y (Platillo seco)',
+      gypsy: '1 (Pompe grave) • 2 (Corte seco) • 3 (Pompe grave) • 4 (Corte seco)',
+      ragtime: '1 (Bajo I) • 1y (Síncopa ↑) • 2 (Acorde) • 3 (Bajo V) • 4 (Síncopa ↑)',
+      polka: '1 (Oom bajo) • 1y (Pah arriba) • 2 (Oom bajo) • 2y (Pah arriba)',
+      offbeat: '1 (Silencio) • 1y (Golpe ↑) • 2 (Silencio) • 2y (Golpe ↑)',
+      reggae: '1 (Bajo profundo) • 2y (Skank doble ↑↑) • 3 (Bajo) • 4y (Skank ↑↑)',
+      punkfolk: '1 (Bajo fuerte) • 1y (Rasgueo abierto ↑) • 2 (Bajo) • 2y (Abierto ↑)',
+      cumbia: '1 (Bajo grave) • 1y (Contra ↑) • 2 (Arriba ↑) • 3 (Bajo) • 3y (↑) • 4 (↑)',
+      bluegrass: '1 (Bajo I) • 2 (Chop seco ✕) • 3 (Bajo V) • 4 (Chop seco ✕)',
+      strum: '1 (↓) • 2 (↓) • 2y (↑) • 3y (↑) • 4 (↓) • 4y (↑)',
+      arpeggio: 'Desglose cuerda por cuerda en corcheas continuas',
+      quarterMute: '1 (Seco ✕) • 2 (Seco ✕) • 3 (Seco ✕) • 4 (Seco ✕)',
+      quarterPower: '1 (Fuerte ↓) • 2 (Fuerte ↓) • 3 (Fuerte ↓) • 4 (Fuerte ↓)',
+      waltz: '1 (Bajo I) • 2 (Acorde ↑) • 3 (Acorde ↑)',
+      jig: '1-2-3 (Tresillo fuerte-suave-suave) • 4-5-6 (Tresillo fuerte-suave-suave)'
     };
 
-    function playBarRhythm(parsedChord, style = 'folk', timeSig = '4/4', bpmVal = 112) {
-      const bpm = Math.max(40, Math.min(260, Number(bpmVal) || 112));
-      const beatSec = 60 / bpm;
-      const beats = getBeatsPerBar(timeSig);
-      const barSec = beats * beatSec;
-      if (!parsedChord || parsedChord.isSilence) return barSec;
-
-      if (style === 'waltz') {
-        const wBeats = timeSig === '3/4' ? 3 : beats;
-        playBassRoot(parsedChord, 0, beatSec * 0.9, 0.25);
-        for (let b = 1; b < wBeats; b++) {
-          playChordStrum(parsedChord, b * beatSec, beatSec * 0.45, 0.14, false, true);
-        }
-        return wBeats * beatSec;
-      } else if (style === 'jig') {
-        for (let b = 0; b < 6; b++) {
-          const t = b * (beatSec * 0.5);
-          if (b === 0) playBassRoot(parsedChord, t, beatSec * 0.65, 0.24);
-          else if (b === 3) playBassFifth(parsedChord, t, beatSec * 0.65, 0.21);
-          else if (b === 2 || b === 5) playChordStrum(parsedChord, t, 0.16, 0.15, false, true);
-          else playPercussiveMute(t, 0.08);
-        }
-        return 3 * beatSec;
-      } else if (style === 'swing') {
-        for (let b = 0; b < beats; b++) {
-          if (b % 2 === 0) {
-            playBassRoot(parsedChord, b * beatSec, beatSec * 0.75, 0.24);
-          } else {
-            playPercussiveMute(b * beatSec, 0.12);
-            playChordStrum(parsedChord, b * beatSec, beatSec * 0.35, 0.16, true, false);
-            playChordStrum(parsedChord, (b + 0.67) * beatSec, beatSec * 0.28, 0.15, false, true);
-          }
-        }
-      } else if (style === 'foxtrot') {
-        playBassRoot(parsedChord, 0, beatSec * 1.4, 0.25);
-        playChordStrum(parsedChord, beatSec, beatSec * 0.5, 0.13, false, false);
-        if (beats >= 3) playBassFifth(parsedChord, beatSec * 2, beatSec * 0.7, 0.22);
-        if (beats >= 4) playChordStrum(parsedChord, beatSec * 3, beatSec * 0.65, 0.18, false, true);
-      } else if (style === 'country') {
-        for (let b = 0; b < beats; b++) {
-          if (b % 2 === 0) playBassRoot(parsedChord, b * beatSec, beatSec * 0.5, 0.24);
-          else playBassFifth(parsedChord, b * beatSec, beatSec * 0.5, 0.22);
-          playPercussiveMute((b + 0.5) * beatSec, 0.14);
-          playChordStrum(parsedChord, (b + 0.5) * beatSec, 0.09, 0.15, true, true);
-        }
-      } else if (style === 'circus') {
-        for (let b = 0; b < beats; b++) {
-          if (b % 2 === 0) playBassRoot(parsedChord, b * beatSec, beatSec * 0.42, 0.28);
-          else playBassFifth(parsedChord, b * beatSec, beatSec * 0.42, 0.26);
-          playPercussiveMute((b + 0.5) * beatSec, 0.18);
-          playChordStrum(parsedChord, (b + 0.5) * beatSec, 0.08, 0.2, true, true);
-        }
-      } else if (style === 'gypsy') {
-        for (let b = 0; b < beats; b++) {
-          if (b % 2 === 0) {
-            playBassRoot(parsedChord, b * beatSec, 0.14, 0.18);
-            playChordStrum(parsedChord, b * beatSec, 0.11, 0.13, true, false);
-          } else {
-            playPercussiveMute(b * beatSec, 0.16);
-            playChordStrum(parsedChord, b * beatSec, 0.09, 0.25, true, true);
-            playChordStrum(parsedChord, (b + 0.75) * beatSec, 0.07, 0.11, true, false);
-          }
-        }
-      } else if (style === 'ragtime') {
-        for (let b = 0; b < beats; b++) {
-          if (b % 2 === 0) {
-            playBassRoot(parsedChord, b * beatSec, beatSec * 0.48, 0.25);
-            playChordStrum(parsedChord, (b + 0.5) * beatSec, beatSec * 0.42, 0.19, false, true);
-          } else {
-            playBassFifth(parsedChord, b * beatSec, beatSec * 0.45, 0.22);
-            playChordStrum(parsedChord, (b + 0.5) * beatSec, 0.11, 0.17, true, false);
-          }
-        }
-      } else if (style === 'polka') {
-        for (let b = 0; b < beats; b++) {
-          if (b % 2 === 0) {
-            playBassRoot(parsedChord, b * beatSec, beatSec * 0.4, 0.26);
-          } else {
-            playPercussiveMute(b * beatSec, 0.14);
-            playChordStrum(parsedChord, b * beatSec, 0.1, 0.22, true, true);
-          }
-        }
-      } else if (style === 'offbeat') {
-        // Contratiempo puro (Ska-Folk): NADA en el tiempo fuerte (1,2,3,4), golpe agudo seco en "y"
-        for (let b = 0; b < beats; b++) {
-          playPercussiveMute((b + 0.5) * beatSec, 0.14);
-          playChordStrum(parsedChord, (b + 0.5) * beatSec, 0.09, 0.26, true, true);
-        }
-      } else if (style === 'reggae') {
-        // Reggae / Skank: bajo grave y largo en 1 y 3, doble corte agudo hacia arriba en 2 y 4
-        for (let b = 0; b < beats; b++) {
-          if (b % 2 === 0) {
-            playBassRoot(parsedChord, b * beatSec, beatSec * 0.95, 0.27);
-          } else {
-            playChordStrum(parsedChord, b * beatSec, 0.08, 0.22, true, true);
-            playChordStrum(parsedChord, (b + 0.5) * beatSec, 0.08, 0.18, true, true);
-          }
-        }
-      } else if (style === 'punkfolk') {
-        // Folk-Punk a contratiempo: bajo alterno fuerte + rasgueo abierto y agresivo en todas las contras
-        for (let b = 0; b < beats; b++) {
-          if (b % 2 === 0) playBassRoot(parsedChord, b * beatSec, beatSec * 0.4, 0.25);
-          else playBassFifth(parsedChord, b * beatSec, beatSec * 0.4, 0.23);
-          playChordStrum(parsedChord, (b + 0.5) * beatSec, beatSec * 0.45, 0.25, false, true);
-        }
-      } else if (style === 'cumbia') {
-        // Cumbia / Marcha a contra: bajo grave + contra aguda + bajo en quinta
-        for (let b = 0; b < beats; b += 2) {
-          playBassRoot(parsedChord, b * beatSec, beatSec * 0.55, 0.26);
-          playChordStrum(parsedChord, (b + 0.5) * beatSec, 0.1, 0.2, true, true);
-          if (b + 1 < beats) {
-            playChordStrum(parsedChord, (b + 1) * beatSec, beatSec * 0.4, 0.21, false, false);
-            playBassFifth(parsedChord, (b + 1.5) * beatSec, beatSec * 0.45, 0.22);
-          }
-        }
-      } else if (style === 'arpeggio') {
-        const strings = getCurrentTuningStrings();
-        const frets = getChordVoicings(parsedChord)[0] || strings.map(() => 0);
-        const steps = beats * 2;
-        for (let s = 0; s < steps; s++) {
-          const strIdx = s < strings.length ? s : Math.max(0, strings.length - 1 - (s - strings.length));
-          const freq = noteNameToFreq(strings[strIdx]) * Math.pow(2, (frets[strIdx] || 0) / 12);
-          playPluckNote(freq, s * (beatSec * 0.5), beatSec * 1.15, 0.19);
-        }
-      } else if (style === 'quarterMute') {
-        for (let b = 0; b < beats; b++) {
-          playPercussiveMute(b * beatSec, 0.16);
-          playChordStrum(parsedChord, b * beatSec, 0.08, 0.2, true, false);
-        }
-      } else if (style === 'quarterPower') {
-        for (let b = 0; b < beats; b++) {
-          playBassRoot(parsedChord, b * beatSec, beatSec * 0.7, b === 0 ? 0.26 : 0.18);
-          playChordStrum(parsedChord, b * beatSec, beatSec * 0.85, b === 0 ? 0.27 : 0.2, false, false);
-        }
-      } else if (style === 'bluegrass') {
-        // Bluegrass Chop: bajo limpio en 1 y 3 + golpe seco y cortante (chop) en 2 y 4
-        for (let b = 0; b < beats; b++) {
-          if (b % 2 === 0) {
-            if (b === 0) playBassRoot(parsedChord, b * beatSec, beatSec * 0.7, 0.25);
-            else playBassFifth(parsedChord, b * beatSec, beatSec * 0.7, 0.23);
-          } else {
-            playPercussiveMute(b * beatSec, 0.19);
-            playChordStrum(parsedChord, b * beatSec, 0.07, 0.24, true, false);
-          }
-        }
-      } else if (style === 'bumditty') {
-        // Clawhammer / Ban-Ditty: Bum (1) - Dit (2) - Ty (2y)
-        for (let b = 0; b < beats; b += 2) {
-          playBassRoot(parsedChord, b * beatSec, beatSec * 0.65, 0.24);
-          if (b + 1 < beats) {
-            playChordStrum(parsedChord, (b + 1) * beatSec, beatSec * 0.45, 0.19, false, false);
-            playPluckNote(noteNameToFreq(getCurrentTuningStrings()[0]), (b + 1.5) * beatSec, beatSec * 0.4, 0.18);
-          }
-        }
-      } else if (style === 'strum') {
-        // Rasgueo abierto de balada: ↓ (1) ... ↑ (2y) ↓ (3y) ↑ (4y)
-        playChordStrum(parsedChord, 0, beatSec * 1.6, 0.22, false, false);
-        if (beats >= 3) playChordStrum(parsedChord, beatSec * 1.5, beatSec * 0.8, 0.16, false, true);
-        if (beats >= 4) {
-          playChordStrum(parsedChord, beatSec * 2.5, beatSec * 0.75, 0.18, false, false);
-          playChordStrum(parsedChord, beatSec * 3.5, beatSec * 0.65, 0.15, false, true);
-        }
-      } else {
-        // Folk Boom-Chick estándar
-        for (let b = 0; b < beats; b++) {
-          if (b % 2 === 0) {
-            if (b === 0) playBassRoot(parsedChord, b * beatSec, beatSec * 0.65, 0.24);
-            else playBassFifth(parsedChord, b * beatSec, beatSec * 0.65, 0.21);
-          } else {
-            playChordStrum(parsedChord, b * beatSec, beatSec * 0.55, 0.17, false, false);
-          }
-        }
-      }
-      return barSec;
-    }
-
-    // Metrónomo global y controles en la pestaña de Afinador
-    let metroTimer = null;
-    let metroBeat = 0;
-    let tapTimes = [];
-
-    function getBeatsPerBar(timeSig) {
-      if (timeSig === '3/4') return 3;
-      if (timeSig === '6/8') return 6;
-      if (timeSig === '2/4') return 2;
-      return 4;
-    }
-
-    function renderMetronomeControls(activeBeat = -1) {
-      const bpm = Math.max(40, Math.min(240, Number(state.song.base.bpm) || 112));
-      const ts = state.song.base.timeSig || '4/4';
-      const beats = getBeatsPerBar(ts);
-
-      const bigEl = document.getElementById('metro-bpm-big');
-      const sliderEl = document.getElementById('metro-bpm-slider');
-      const tsEl = document.getElementById('metro-timesig-select');
-      const dotsEl = document.getElementById('metro-beats-display');
-      const panelBtn = document.getElementById('btn-metro-panel');
-      const statusPill = document.getElementById('metro-status-pill');
-
-      if (bigEl) bigEl.textContent = String(bpm);
-      if (sliderEl) sliderEl.value = String(bpm);
-      if (tsEl) tsEl.value = ts;
-      if (panelBtn) panelBtn.textContent = metroTimer ? '■ Detener' : '▶ Iniciar';
-      if (statusPill) {
-        statusPill.textContent = metroTimer ? 'En marcha' : 'Detenido';
-        statusPill.className = metroTimer
-          ? 'text-xs font-mono-code font-bold px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
-          : 'text-xs font-mono-code font-bold px-2.5 py-1 rounded-full th-subcard border th-muted';
-      }
-
-      if (dotsEl) {
-        const items = [];
-        for (let i = 0; i < beats; i++) {
-          const isActive = i === activeBeat;
-          const isAccent = i === 0;
-          const cls = isActive
-            ? (isAccent ? 'bg-emerald-400 text-stone-950 scale-125 shadow-md' : 'bg-amber-400 text-stone-950 scale-115 shadow-md')
-            : 'th-card border th-muted';
-          items.push(`<div class="w-9 h-9 rounded-full flex items-center justify-center font-mono-code text-xs font-extrabold transition-all ${cls}">${i + 1}</div>`);
-        }
-        dotsEl.innerHTML = items.join('');
-      }
-    }
-
     function updateBaseStyleDescription() {
+      const style = state.song.base.style || 'folk';
       const box = document.getElementById('base-style-desc');
       if (!box) return;
-      const st = state.song.base.style || 'folk';
-      const desc = STYLE_PATTERNS_INFO[st] || STYLE_PATTERNS_INFO.folk;
+      const desc = STYLE_PATTERNS_INFO[style] || STYLE_PATTERNS_INFO.folk;
       box.innerHTML = `
         <span>Patrón: <strong class="th-accent">${desc}</strong></span>
         <button type="button" onclick="previewCurrentStylePattern()" class="th-accent font-bold hover:underline shrink-0">🔊 Probar patrón</button>
@@ -2000,8 +1756,453 @@
     async function previewCurrentStylePattern() {
       await unlockAudioCtx();
       const chords = splitChordsText(state.song.base.chordsText);
-      const first = parseChordSymbol(chords[0] || 'D');
-      playBarRhythm(first, state.song.base.style, state.song.base.timeSig, state.song.base.bpm);
+      const parsed = parseChordSymbol(chords[0] || 'D5');
+      playBarRhythm(parsed, state.song.base.style, state.song.base.timeSig, state.song.base.bpm, state.baseVoicingIdx[0] || 0);
+    }
+
+    function playBarRhythm(parsedChord, style = 'folk', timeSig = '4/4', bpm = 112, voicingIdx = 0) {
+      if (!parsedChord || parsedChord.isSilence) return;
+      const beats = timeSig === '3/4' ? 3 : (timeSig === '2/4' ? 2 : (timeSig === '6/8' ? 6 : 4));
+      const beatSec = timeSig === '6/8' ? (60 / bpm) * 0.5 : (60 / bpm);
+
+      if (style === 'waltz' || timeSig === '3/4') {
+        playBassRoot(parsedChord, 0, beatSec * 0.9, 0.21);
+        playChordStrum(parsedChord, beatSec, beatSec * 0.65, 0.14, true, false, voicingIdx);
+        playChordStrum(parsedChord, beatSec * 2, beatSec * 0.65, 0.14, true, false, voicingIdx);
+        return;
+      }
+
+      if (style === 'jig' || timeSig === '6/8') {
+        for (let b = 0; b < 6; b++) {
+          const accent = b === 0 || b === 3;
+          playChordStrum(parsedChord, b * beatSec, beatSec * 0.75, accent ? 0.18 : 0.11, !accent, !accent, voicingIdx);
+        }
+        return;
+      }
+
+      if (style === 'gallop') {
+        for (let b = 0; b < beats; b++) {
+          const t = b * beatSec;
+          playChordStrum(parsedChord, t, beatSec * 0.45, 0.19, false, false, voicingIdx);
+          playChordStrum(parsedChord, t + beatSec * 0.5, beatSec * 0.24, 0.14, true, true, voicingIdx);
+          playChordStrum(parsedChord, t + beatSec * 0.75, beatSec * 0.24, 0.16, false, true, voicingIdx);
+        }
+        return;
+      }
+
+      if (style === 'bumditty') {
+        for (let b = 0; b < beats; b += 2) {
+          const t = b * beatSec;
+          playBassRoot(parsedChord, t, beatSec * 0.85, 0.2);
+          playChordStrum(parsedChord, t + beatSec, beatSec * 0.48, 0.17, false, false, voicingIdx);
+          playBassFifth(parsedChord, t + beatSec * 1.5, beatSec * 0.45, 0.15);
+        }
+        return;
+      }
+
+      if (style === 'country') {
+        for (let b = 0; b < beats; b++) {
+          const t = b * beatSec;
+          if (b % 2 === 0) playBassRoot(parsedChord, t, beatSec * 0.55, 0.2);
+          else playChordStrum(parsedChord, t, beatSec * 0.45, 0.17, false, true, voicingIdx);
+          playChordStrum(parsedChord, t + beatSec * 0.5, beatSec * 0.35, 0.12, true, true, voicingIdx);
+        }
+        return;
+      }
+
+      if (style === 'swing') {
+        for (let b = 0; b < beats; b++) {
+          const t = b * beatSec;
+          if (b % 2 === 0) {
+            playBassRoot(parsedChord, t, beatSec * 0.85, 0.2);
+          } else {
+            playChordStrum(parsedChord, t, beatSec * 0.55, 0.16, false, true, voicingIdx);
+            playChordStrum(parsedChord, t + beatSec * 0.66, beatSec * 0.3, 0.13, true, true, voicingIdx);
+          }
+        }
+        return;
+      }
+
+      if (style === 'foxtrot') {
+        playBassRoot(parsedChord, 0, beatSec * 1.7, 0.2);
+        playChordStrum(parsedChord, beatSec * 2, beatSec * 0.8, 0.16, false, false, voicingIdx);
+        playChordStrum(parsedChord, beatSec * 3, beatSec * 0.8, 0.15, true, false, voicingIdx);
+        return;
+      }
+
+      if (style === 'circus' || style === 'polka') {
+        for (let b = 0; b < beats; b++) {
+          const t = b * beatSec;
+          if (b % 2 === 0) playBassRoot(parsedChord, t, beatSec * 0.48, 0.22);
+          else playBassFifth(parsedChord, t, beatSec * 0.48, 0.21);
+          playChordStrum(parsedChord, t + beatSec * 0.5, beatSec * 0.32, 0.16, true, true, voicingIdx);
+          if (style === 'circus') playPercussiveMute(t + beatSec * 0.5, 0.1);
+        }
+        return;
+      }
+
+      if (style === 'gypsy') {
+        for (let b = 0; b < beats; b++) {
+          const t = b * beatSec;
+          if (b % 2 === 0) {
+            playChordStrum(parsedChord, t, beatSec * 0.45, 0.18, false, false, voicingIdx);
+          } else {
+            playChordStrum(parsedChord, t, beatSec * 0.18, 0.21, false, true, voicingIdx);
+            playPercussiveMute(t + 0.01, 0.16);
+          }
+        }
+        return;
+      }
+
+      if (style === 'ragtime') {
+        for (let b = 0; b < beats; b++) {
+          const t = b * beatSec;
+          if (b % 2 === 0) {
+            playBassRoot(parsedChord, t, beatSec * 0.45, 0.2);
+            playChordStrum(parsedChord, t + beatSec * 0.5, beatSec * 0.4, 0.15, true, true, voicingIdx);
+          } else {
+            playBassFifth(parsedChord, t, beatSec * 0.45, 0.19);
+            playChordStrum(parsedChord, t + beatSec * 0.5, beatSec * 0.4, 0.16, true, true, voicingIdx);
+          }
+        }
+        return;
+      }
+
+      if (style === 'offbeat') {
+        for (let b = 0; b < beats; b++) {
+          const t = b * beatSec;
+          playPercussiveMute(t, 0.08);
+          playChordStrum(parsedChord, t + beatSec * 0.5, beatSec * 0.26, 0.19, true, true, voicingIdx);
+        }
+        return;
+      }
+
+      if (style === 'reggae') {
+        playBassRoot(parsedChord, 0, beatSec * 1.4, 0.22);
+        playChordStrum(parsedChord, beatSec * 1.5, beatSec * 0.2, 0.17, true, true, voicingIdx);
+        playChordStrum(parsedChord, beatSec * 1.75, beatSec * 0.2, 0.15, true, true, voicingIdx);
+        if (beats >= 4) {
+          playBassFifth(parsedChord, beatSec * 2, beatSec * 1.4, 0.2);
+          playChordStrum(parsedChord, beatSec * 3.5, beatSec * 0.2, 0.17, true, true, voicingIdx);
+          playChordStrum(parsedChord, beatSec * 3.75, beatSec * 0.2, 0.15, true, true, voicingIdx);
+        }
+        return;
+      }
+
+      if (style === 'punkfolk') {
+        for (let b = 0; b < beats; b++) {
+          const t = b * beatSec;
+          if (b % 2 === 0) playBassRoot(parsedChord, t, beatSec * 0.45, 0.22);
+          else playBassFifth(parsedChord, t, beatSec * 0.45, 0.2);
+          playChordStrum(parsedChord, t + beatSec * 0.5, beatSec * 0.48, 0.2, true, false, voicingIdx);
+        }
+        return;
+      }
+
+      if (style === 'cumbia') {
+        for (let b = 0; b < beats; b += 2) {
+          const t = b * beatSec;
+          playBassRoot(parsedChord, t, beatSec * 0.45, 0.22);
+          playChordStrum(parsedChord, t + beatSec * 0.5, beatSec * 0.35, 0.16, true, true, voicingIdx);
+          playChordStrum(parsedChord, t + beatSec, beatSec * 0.45, 0.18, true, true, voicingIdx);
+        }
+        return;
+      }
+
+      if (style === 'bluegrass') {
+        for (let b = 0; b < beats; b++) {
+          const t = b * beatSec;
+          if (b === 0) playBassRoot(parsedChord, t, beatSec * 0.85, 0.22);
+          else if (b === 2) playBassFifth(parsedChord, t, beatSec * 0.85, 0.2);
+          else {
+            playChordStrum(parsedChord, t, beatSec * 0.16, 0.19, false, true, voicingIdx);
+            playPercussiveMute(t + 0.01, 0.18);
+          }
+        }
+        return;
+      }
+
+      if (style === 'strum') {
+        playChordStrum(parsedChord, 0, beatSec * 0.9, 0.18, false, false, voicingIdx);
+        playChordStrum(parsedChord, beatSec, beatSec * 0.45, 0.16, false, false, voicingIdx);
+        playChordStrum(parsedChord, beatSec * 1.5, beatSec * 0.45, 0.14, true, false, voicingIdx);
+        if (beats >= 4) {
+          playChordStrum(parsedChord, beatSec * 2.5, beatSec * 0.45, 0.14, true, false, voicingIdx);
+          playChordStrum(parsedChord, beatSec * 3, beatSec * 0.45, 0.17, false, false, voicingIdx);
+          playChordStrum(parsedChord, beatSec * 3.5, beatSec * 0.45, 0.14, true, false, voicingIdx);
+        }
+        return;
+      }
+
+      if (style === 'arpeggio') {
+        const strings = getCurrentTuningStrings();
+        const voicings = getChordVoicings(parsedChord, 14);
+        const frets = voicings[voicingIdx % voicings.length] || voicings[0] || strings.map(() => 0);
+        const steps = beats * 2;
+        for (let i = 0; i < steps; i++) {
+          const sIdx = i % strings.length;
+          const freq = noteNameToFreq(strings[sIdx]) * Math.pow(2, (frets[sIdx] || 0) / 12);
+          playPluckNote(freq, i * (beatSec * 0.5), beatSec * 0.9, 0.16);
+        }
+        return;
+      }
+
+      if (style === 'quarterMute') {
+        for (let b = 0; b < beats; b++) {
+          playChordStrum(parsedChord, b * beatSec, beatSec * 0.18, 0.18, false, true, voicingIdx);
+          playPercussiveMute(b * beatSec + 0.01, 0.15);
+        }
+        return;
+      }
+
+      if (style === 'quarterPower') {
+        for (let b = 0; b < beats; b++) {
+          playChordStrum(parsedChord, b * beatSec, beatSec * 0.85, 0.21, false, false, voicingIdx);
+        }
+        return;
+      }
+
+      // Estilo por defecto: Folk Boom-Chick (I - Rasgueo - V - Rasgueo)
+      for (let b = 0; b < beats; b++) {
+        const t = b * beatSec;
+        if (b === 0) playBassRoot(parsedChord, t, beatSec * 0.85, 0.21);
+        else if (b === 2) playBassFifth(parsedChord, t, beatSec * 0.85, 0.19);
+        else playChordStrum(parsedChord, t, beatSec * 0.68, 0.17, false, false, voicingIdx);
+      }
+    }
+
+    let playTimer = null;
+    let isPlayingBase = false;
+    let isPlayingAll = false;
+
+    function clearPlayHighlights() {
+      document.querySelectorAll('.active-play').forEach(el => el.classList.remove('active-play'));
+      document.querySelectorAll('.active-sec').forEach(el => el.classList.remove('active-sec'));
+    }
+
+    function stopAllPlayback() {
+      clearTimeout(playTimer);
+      playTimer = null;
+      isPlayingBase = false;
+      isPlayingAll = false;
+      clearPlayHighlights();
+      const bBase = document.getElementById('btn-play-base');
+      const bAll = document.getElementById('btn-play-all');
+      if (bBase) bBase.textContent = '▶ Escuchar Rueda';
+      if (bAll) bAll.textContent = '▶ Tocar Todo (Karaoke)';
+    }
+
+    async function togglePlayBase() {
+      if (isPlayingBase) {
+        stopAllPlayback();
+        return;
+      }
+      stopAllPlayback();
+      await unlockAudioCtx();
+      const chords = splitChordsText(state.song.base.chordsText);
+      if (!chords.length) return;
+
+      isPlayingBase = true;
+      document.getElementById('btn-play-base').textContent = '■ Detener Rueda';
+      let idx = 0;
+
+      const step = () => {
+        if (!isPlayingBase) return;
+        const list = splitChordsText(state.song.base.chordsText);
+        if (!list.length) { stopAllPlayback(); return; }
+        const curIdx = idx % list.length;
+        const sym = list[curIdx];
+        const parsed = parseChordSymbol(sym);
+
+        clearPlayHighlights();
+        const card = document.getElementById(`base-chord-card-${curIdx}`);
+        if (card) card.classList.add('active-play');
+
+        const bpm = Math.max(40, Math.min(260, Number(state.song.base.bpm) || 112));
+        const timeSig = state.song.base.timeSig || '4/4';
+        const beats = timeSig === '3/4' ? 3 : (timeSig === '2/4' ? 2 : 4);
+        const barMs = (60 / bpm) * beats * 1000;
+
+        playBarRhythm(parsed, state.song.base.style, timeSig, bpm, state.baseVoicingIdx[curIdx] || 0);
+        idx++;
+        playTimer = setTimeout(step, barMs);
+      };
+      step();
+    }
+
+    async function togglePlayAllStructure(onlySectionIdx = -1) {
+      if (isPlayingAll) {
+        stopAllPlayback();
+        return;
+      }
+      stopAllPlayback();
+      await unlockAudioCtx();
+
+      const steps = [];
+      state.song.structure.forEach((sec, sIdx) => {
+        if (onlySectionIdx >= 0 && sIdx !== onlySectionIdx) return;
+        if (sec.muted && onlySectionIdx < 0) return;
+        const chords = sec.isBreak ? ['NC'] : splitChordsText(sec.chordsText);
+        const reps = Math.max(1, Number(sec.repeats) || 1);
+        for (let r = 0; r < reps; r++) {
+          chords.forEach((ch, cIdx) => {
+            steps.push({ sec, sIdx, ch, cIdx, rep: r + 1, totalReps: reps });
+          });
+        }
+      });
+
+      if (!steps.length) {
+        showToast('⚠️ Añade secciones a la estructura primero');
+        return;
+      }
+
+      isPlayingAll = true;
+      document.getElementById('btn-play-all').textContent = '■ Detener Karaoke';
+      let ptr = 0;
+
+      const runStep = () => {
+        if (!isPlayingAll) return;
+        if (ptr >= steps.length) {
+          stopAllPlayback();
+          document.getElementById('atril-sec-lbl').textContent = 'FIN DE LA CANCIÓN';
+          return;
+        }
+        const cur = steps[ptr];
+        const next = steps[ptr + 1];
+        const parsed = parseChordSymbol(cur.ch);
+
+        clearPlayHighlights();
+        const secEl = document.getElementById(`struct-sec-${cur.sIdx}`);
+        const chEl = document.getElementById(`struct-chord-${cur.sIdx}-${cur.cIdx}`);
+        const teleEl = document.getElementById(`tele-chord-${cur.sIdx}-${cur.cIdx}`);
+        if (secEl) secEl.classList.add('active-sec');
+        if (chEl) chEl.classList.add('active-play');
+        if (teleEl) teleEl.classList.add('active-play');
+
+        document.getElementById('atril-sec-lbl').textContent = `[${cur.sec.role.toUpperCase()}] ${cur.sec.name} • Vuelta ${cur.rep}/${cur.totalReps}`;
+        document.getElementById('atril-meta-lbl').textContent = `${cur.sec.timeSig} • ${cur.sec.bpm} BPM • ${cur.sec.style}`;
+        document.getElementById('atril-chord-big').textContent = parsed ? parsed.display : cur.ch;
+        document.getElementById('atril-next-lbl').textContent = next ? parseChordSymbol(next.ch).display : 'FIN';
+        const frets = parsed && !parsed.isSilence ? (getChordVoicings(parsed)[0] || []) : [];
+        document.getElementById('atril-diagram-box').innerHTML = renderChordSvg(frets, true);
+
+        const bpm = Math.max(40, Math.min(260, Number(cur.sec.bpm) || 112));
+        const timeSig = cur.sec.timeSig || '4/4';
+        const beats = timeSig === '3/4' ? 3 : (timeSig === '2/4' ? 2 : 4);
+        const barMs = (60 / bpm) * beats * 1000;
+
+        playBarRhythm(parsed, cur.sec.style, timeSig, bpm, 0);
+        ptr++;
+        playTimer = setTimeout(runStep, barMs);
+      };
+      runStep();
+    }
+
+    // Metrónomo global
+    let metroTimer = null;
+    let metroBeat = 0;
+    let tapTimestamps = [];
+
+    function renderMetronomeControls(activeBeat = -1) {
+      const bpm = Math.max(40, Math.min(260, Number(state.song.base.bpm) || 112));
+      const timeSig = state.song.base.timeSig || '4/4';
+      const beats = timeSig === '3/4' ? 3 : (timeSig === '2/4' ? 2 : (timeSig === '6/8' ? 6 : 4));
+
+      const big = document.getElementById('metro-bpm-big');
+      const slider = document.getElementById('metro-bpm-slider');
+      const tsSel = document.getElementById('metro-timesig-select');
+      const beatsBox = document.getElementById('metro-beats-display');
+      const pill = document.getElementById('metro-status-pill');
+      const panelBtn = document.getElementById('btn-metro-panel');
+
+      if (big) big.textContent = String(bpm);
+      if (slider) slider.value = String(bpm);
+      if (tsSel) tsSel.value = timeSig;
+      if (pill) {
+        pill.textContent = metroTimer ? 'En marcha' : 'Detenido';
+        pill.className = metroTimer
+          ? 'text-xs font-mono-code font-bold px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+          : 'text-xs font-mono-code font-bold px-2.5 py-1 rounded-full th-subcard border th-muted';
+      }
+      if (panelBtn) {
+        panelBtn.textContent = metroTimer ? '■ Detener' : '▶ Iniciar';
+      }
+      if (beatsBox) {
+        let html = '';
+        for (let i = 0; i < beats; i++) {
+          const isCur = i === activeBeat;
+          const isOne = i === 0;
+          html += `<span class="w-8 h-8 rounded-full flex items-center justify-center font-mono-code text-xs font-extrabold transition-transform ${isCur ? (isOne ? 'bg-amber-500 text-stone-950 scale-125' : 'bg-emerald-500 text-stone-950 scale-110') : 'th-card border th-muted'}">${i + 1}</span>`;
+        }
+        beatsBox.innerHTML = html;
+      }
+    }
+
+    function setMetronomeBpm(val) {
+      const bpm = Math.max(40, Math.min(260, Number(val) || 112));
+      state.song.base.bpm = bpm;
+      document.getElementById('base-bpm-input').value = bpm;
+      document.getElementById('global-bpm-lbl').textContent = `${bpm} BPM`;
+      renderMetronomeControls(-1);
+      scheduleAutoSave();
+    }
+
+    function setMetronomeTimeSig(ts) {
+      state.song.base.timeSig = ts;
+      document.getElementById('base-timesig-select').value = ts;
+      renderMetronomeControls(-1);
+      scheduleAutoSave();
+    }
+
+    function tapMetronomeTempo() {
+      const now = Date.now();
+      tapTimestamps = tapTimestamps.filter(t => now - t < 2500);
+      tapTimestamps.push(now);
+      if (tapTimestamps.length >= 2) {
+        const diffs = [];
+        for (let i = 1; i < tapTimestamps.length; i++) diffs.push(tapTimestamps[i] - tapTimestamps[i - 1]);
+        const avgMs = diffs.reduce((a, b) => a + b, 0) / diffs.length;
+        const bpm = Math.round(60000 / avgMs);
+        setMetronomeBpm(bpm);
+      }
+      playClickSound(true, 0);
+    }
+
+    async function toggleMetronome() {
+      const led = document.getElementById('metro-led');
+      if (metroTimer) {
+        clearInterval(metroTimer);
+        metroTimer = null;
+        if (led) led.className = 'w-2.5 h-2.5 rounded-full bg-stone-500';
+        renderMetronomeControls(-1);
+        return;
+      }
+      await unlockAudioCtx();
+      metroBeat = 0;
+      const tick = () => {
+        const ts = state.song.base.timeSig || '4/4';
+        const beats = ts === '3/4' ? 3 : (ts === '2/4' ? 2 : (ts === '6/8' ? 6 : 4));
+        const cur = metroBeat % beats;
+        const accent = cur === 0 && (document.getElementById('metro-accent-chk')?.checked !== false);
+        playClickSound(accent, 0);
+        if (led) led.className = cur === 0 ? 'w-2.5 h-2.5 rounded-full bg-amber-400' : 'w-2.5 h-2.5 rounded-full bg-emerald-400';
+        renderMetronomeControls(cur);
+        metroBeat++;
+      };
+      tick();
+      const bpm = Math.max(40, Math.min(260, Number(state.song.base.bpm) || 112));
+      metroTimer = setInterval(tick, 60000 / bpm);
+    }
+
+    function adjustGlobalTempo(delta) {
+      setMetronomeBpm((Number(state.song.base.bpm) || 112) + delta);
+    }
+
+    function onBaseInputChange() {
+      state.song.base.chordsText = document.getElementById('base-chords-input').value;
+      renderBaseChords();
+      renderInspirationList();
+      scheduleAutoSave();
     }
 
     function onBaseConfigChange(previewPattern = false) {
@@ -2012,306 +2213,78 @@
       updateBaseStyleDescription();
       renderMetronomeControls(-1);
       scheduleAutoSave();
-      if (previewPattern && playMode !== 'base') {
-        previewCurrentStylePattern();
-      }
+      if (previewPattern) previewCurrentStylePattern();
     }
 
-    function setMetronomeBpm(val) {
-      const bpm = Math.max(40, Math.min(240, Math.round(Number(val) || 112)));
-      state.song.base.bpm = bpm;
-      const baseBpmInput = document.getElementById('base-bpm-input');
-      const globalBpmLbl = document.getElementById('global-bpm-lbl');
-      if (baseBpmInput) baseBpmInput.value = bpm;
-      if (globalBpmLbl) globalBpmLbl.textContent = `${bpm} BPM`;
-      renderMetronomeControls(metroTimer ? ((metroBeat - 1 + getBeatsPerBar(state.song.base.timeSig)) % getBeatsPerBar(state.song.base.timeSig)) : -1);
-      scheduleAutoSave();
-    }
-
-    function setMetronomeTimeSig(ts) {
-      state.song.base.timeSig = ts;
-      const baseTsSel = document.getElementById('base-timesig-select');
-      if (baseTsSel) baseTsSel.value = ts;
-      metroBeat = 0;
-      renderMetronomeControls(-1);
-      scheduleAutoSave();
-    }
-
-    function tapMetronomeTempo() {
-      const now = performance.now();
-      if (tapTimes.length && now - tapTimes[tapTimes.length - 1] > 2200) {
-        tapTimes = [];
-      }
-      tapTimes.push(now);
-      if (tapTimes.length > 6) tapTimes.shift();
-      if (tapTimes.length >= 2) {
-        let sum = 0;
-        for (let i = 1; i < tapTimes.length; i++) sum += (tapTimes[i] - tapTimes[i - 1]);
-        const avgMs = sum / (tapTimes.length - 1);
-        const bpm = Math.round(60000 / avgMs);
-        setMetronomeBpm(bpm);
-      }
-    }
-
-    async function toggleMetronome() {
-      const btn = document.getElementById('btn-metronome-global');
-      const led = document.getElementById('metro-led');
-      if (metroTimer) {
-        clearTimeout(metroTimer);
-        metroTimer = null;
-        if (led) led.className = 'w-2.5 h-2.5 rounded-full bg-stone-500';
-        if (btn) btn.classList.remove('border-amber-500');
-        renderMetronomeControls(-1);
-        return;
-      }
-      await unlockAudioCtx();
-      metroBeat = 0;
-      if (btn) btn.classList.add('border-amber-500');
-      const tick = () => {
-        if (!metroTimer) return;
-        const bpm = Math.max(40, Math.min(240, Number(state.song.base.bpm) || 112));
-        const beats = getBeatsPerBar(state.song.base.timeSig);
-        const currentBeatIdx = metroBeat % beats;
-        const accentEnabled = document.getElementById('metro-accent-chk')?.checked !== false;
-        const isAccent = accentEnabled && currentBeatIdx === 0;
-        playClickSound(isAccent);
-        renderMetronomeControls(currentBeatIdx);
-        if (led) {
-          led.className = isAccent
-            ? 'w-2.5 h-2.5 rounded-full bg-emerald-400 scale-125'
-            : 'w-2.5 h-2.5 rounded-full bg-amber-400';
-          setTimeout(() => {
-            if (metroTimer && led) led.className = 'w-2.5 h-2.5 rounded-full bg-stone-600';
-          }, 110);
-        }
-        metroBeat++;
-        metroTimer = setTimeout(tick, (60 / bpm) * 1000);
-      };
-      metroTimer = setTimeout(tick, 10);
-      renderMetronomeControls(0);
-    }
-
-    // Reproducción de Rueda Base y Estructura Karaoke
-    let playLoopTimer = null;
-    let playMode = null; // 'base' | 'all' | 'section'
-
-    function stopAllPlayback() {
-      if (playLoopTimer) {
-        clearTimeout(playLoopTimer);
-        playLoopTimer = null;
-      }
-      playMode = null;
-      const bBase = document.getElementById('btn-play-base');
-      const bAll = document.getElementById('btn-play-all');
-      if (bBase) bBase.textContent = '▶ Escuchar Rueda';
-      if (bAll) bAll.textContent = '▶ Tocar Todo (Karaoke)';
-      document.querySelectorAll('.active-play, .active-sec').forEach(el => {
-        el.classList.remove('active-play', 'active-sec');
-      });
-    }
-
-    async function togglePlayBase() {
-      if (playMode === 'base') {
-        stopAllPlayback();
-        return;
-      }
-      stopAllPlayback();
-      await unlockAudioCtx();
-      playMode = 'base';
-      const btn = document.getElementById('btn-play-base');
-      if (btn) btn.textContent = '■ Detener Rueda';
-
-      let idx = 0;
-      const step = () => {
-        if (playMode !== 'base') return;
-        const chords = splitChordsText(state.song.base.chordsText);
-        if (!chords.length) {
-          stopAllPlayback();
-          return;
-        }
-        const curIdx = idx % chords.length;
-        const parsed = parseChordSymbol(chords[curIdx]);
-        document.querySelectorAll('#base-chords-grid .chord-pill-big').forEach((el, i) => {
-          el.classList.toggle('active-play', i === curIdx);
-        });
-        const durSec = playBarRhythm(parsed, state.song.base.style, state.song.base.timeSig, state.song.base.bpm);
-        idx++;
-        playLoopTimer = setTimeout(step, durSec * 1000);
-      };
-      step();
-    }
-
-    async function togglePlayAllStructure(onlySectionIdx = -1) {
-      if (playMode === 'all' || playMode === 'section') {
-        stopAllPlayback();
-        return;
-      }
-      const sections = onlySectionIdx >= 0
-        ? (state.song.structure[onlySectionIdx] ? [{ sec: state.song.structure[onlySectionIdx], secIdx: onlySectionIdx }] : [])
-        : state.song.structure.map((sec, secIdx) => ({ sec, secIdx })).filter(item => !item.sec.muted);
-
-      if (!sections.length) {
-        showToast('⚠️ Añade al menos una sección a la estructura primero');
-        return;
-      }
-
-      await unlockAudioCtx();
-      playMode = onlySectionIdx >= 0 ? 'section' : 'all';
-      const btnAll = document.getElementById('btn-play-all');
-      if (btnAll && playMode === 'all') btnAll.textContent = '■ Detener Karaoke';
-
-      const timeline = [];
-      sections.forEach(({ sec, secIdx }) => {
-        const reps = Math.max(1, Number(sec.repeats) || 1);
-        const chords = sec.isBreak ? ['NC'] : splitChordsText(sec.chordsText);
-        for (let r = 0; r < reps; r++) {
-          chords.forEach((ch, chIdx) => {
-            timeline.push({ sec, secIdx, ch, chIdx });
-          });
-        }
-      });
-
-      let cursor = 0;
-      const step = () => {
-        if (!playMode || cursor >= timeline.length) {
-          stopAllPlayback();
-          return;
-        }
-        const item = timeline[cursor];
-        const nextItem = timeline[(cursor + 1) % timeline.length];
-        const parsed = parseChordSymbol(item.ch);
-
-        document.getElementById('atril-sec-lbl').textContent = `${item.sec.role.toUpperCase()} • ${item.sec.name}`;
-        document.getElementById('atril-meta-lbl').textContent = `${item.sec.timeSig} • ${item.sec.bpm} BPM`;
-        document.getElementById('atril-chord-big').textContent = parsed ? parsed.display : item.ch;
-        document.getElementById('atril-next-lbl').textContent = nextItem ? nextItem.ch : 'FIN';
-        const diagBox = document.getElementById('atril-diagram-box');
-        if (diagBox) {
-          diagBox.innerHTML = parsed && !parsed.isSilence ? renderChordSvg(getChordVoicings(parsed)[0], false) : '';
-        }
-
-        document.querySelectorAll('.struct-card').forEach(c => c.classList.remove('active-sec'));
-        document.querySelectorAll('.struct-chord-card, .tele-chord-pill').forEach(p => p.classList.remove('active-play'));
-
-        const activeSecEl = document.getElementById(`struct-sec-${item.secIdx}`);
-        if (activeSecEl) {
-          activeSecEl.classList.add('active-sec');
-          activeSecEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        }
-        const activeChordEl = document.getElementById(`struct-chord-${item.secIdx}-${item.chIdx}`);
-        if (activeChordEl) activeChordEl.classList.add('active-play');
-        const teleChordEl = document.getElementById(`tele-chord-${item.secIdx}-${item.chIdx}`);
-        if (teleChordEl) teleChordEl.classList.add('active-play');
-
-        const durSec = playBarRhythm(parsed, item.sec.style, item.sec.timeSig, item.sec.bpm);
-        cursor++;
-        playLoopTimer = setTimeout(step, durSec * 1000);
-      };
-      step();
-    }
-
-    // =========================================================================
-    // 6. COMPOSITOR, ESTRUCTURA, GRABADORA DE TOMAS, IDEAS Y BANCO
-    // =========================================================================
-    function buildChordOptionsHtml(selectedChord = '') {
-      const chords = splitChordsText(state.song.base.chordsText);
-      const firstParsed = parseChordSymbol(chords[0] || 'D');
-      const tonicIdx = firstParsed && !firstParsed.isSilence ? firstParsed.rootIdx : 2;
-      const degrees = [
-        { lbl: 'I', iv: 0, suf: '' },
-        { lbl: 'I5', iv: 0, suf: '5' },
-        { lbl: 'ii', iv: 2, suf: 'm' },
-        { lbl: 'iii', iv: 4, suf: 'm' },
-        { lbl: 'IV', iv: 5, suf: '' },
-        { lbl: 'V', iv: 7, suf: '' },
-        { lbl: 'V7', iv: 7, suf: '7' },
-        { lbl: 'vi', iv: 9, suf: 'm' },
-        { lbl: 'bVII', iv: 10, suf: '' }
-      ];
-      const diatonicOpts = degrees.map(d => {
-        const name = indexToNote(tonicIdx + d.iv) + d.suf;
-        return `<option value="${name}" ${name === selectedChord ? 'selected' : ''}>${name} (${d.lbl})</option>`;
-      }).join('');
-
-      const suffixes = ['', 'm', '5', '7', 'maj7', 'm7', 'm7b5', '6', 'm6', '9', 'add9', 'sus4', '7sus4', 'sus2', 'dim', 'dim7', 'aug'];
-      const allOpts = NOTES.map(n => {
-        const inner = suffixes.map(s => {
-          const cName = n + s;
-          return `<option value="${cName}" ${cName === selectedChord ? 'selected' : ''}>${cName}</option>`;
-        }).join('');
-        return `<optgroup label="Nota ${n}">${inner}</optgroup>`;
-      }).join('');
-
-      return `
-        <optgroup label="Sugeridos en Tonalidad">${diatonicOpts}</optgroup>
-        <optgroup label="Silencio"><option value="NC" ${selectedChord === 'NC' ? 'selected' : ''}>NC (Silencio)</option></optgroup>
-        ${allOpts}
-      `;
-    }
-
-    function updateTonicAndQuickSelect() {
-      const chords = splitChordsText(state.song.base.chordsText);
-      const first = parseChordSymbol(chords[0] || 'D');
-      const tonic = first && !first.isSilence ? first.rootName : 'D';
-      const dom = indexToNote(noteToIndex(tonic) + 7);
-      const keyBadge = document.getElementById('key-badge');
-      const scalesHint = document.getElementById('scales-hint');
-      if (keyBadge) keyBadge.textContent = `🎯 Tónica: ${tonic} • Nota Dominante (V): ${dom}`;
-      if (scalesHint) scalesHint.innerHTML = `Escalas sugeridas: <strong>${tonic} Mayor / Mixolidio / Pentatónica</strong>`;
-
-      const quickSel = document.getElementById('base-quick-chord-select');
-      if (quickSel) {
-        quickSel.innerHTML = `<option value="">+ Añadir acorde...</option>` + buildChordOptionsHtml('');
-      }
-    }
-
-    function onBaseInputChange() {
-      state.song.base.chordsText = document.getElementById('base-chords-input').value;
-      renderBaseChords();
-      scheduleAutoSave();
-    }
-
-    function onBaseConfigChange() {
-      state.song.base.style = document.getElementById('base-style-select').value;
-      state.song.base.timeSig = document.getElementById('base-timesig-select').value;
-      state.song.base.bpm = Math.max(40, Math.min(260, Number(document.getElementById('base-bpm-input').value) || 112));
-      document.getElementById('global-bpm-lbl').textContent = `${state.song.base.bpm} BPM`;
-      renderMetronomeControls(-1);
-      scheduleAutoSave();
-    }
-
-    function adjustGlobalTempo(delta) {
-      const next = Math.max(40, Math.min(260, (Number(state.song.base.bpm) || 112) + delta));
-      state.song.base.bpm = next;
-      document.getElementById('base-bpm-input').value = next;
-      document.getElementById('global-bpm-lbl').textContent = `${next} BPM`;
-      renderMetronomeControls(-1);
-      scheduleAutoSave();
+    function buildChordOptionsHtml(selectedChord) {
+      const suffixes = ['', 'm', '5', '7', 'maj7', 'm7', 'sus4', 'sus2', 'dim', 'aug'];
+      const list = [];
+      NOTES.forEach(n => suffixes.forEach(s => list.push(n + s)));
+      if (selectedChord && !list.includes(selectedChord)) list.unshift(selectedChord);
+      return list.map(c => `<option value="${c}" ${c === selectedChord ? 'selected' : ''}>${c}</option>`).join('');
     }
 
     function renderBaseChords() {
-      updateTonicAndQuickSelect();
       const grid = document.getElementById('base-chords-grid');
-      if (!grid) return;
+      const quickSel = document.getElementById('base-quick-chord-select');
+      if (quickSel && !quickSel.options.length) {
+        quickSel.innerHTML = `<option value="">+ Añadir acorde...</option>` + buildChordOptionsHtml('');
+      }
       const chords = splitChordsText(state.song.base.chordsText);
+      const first = parseChordSymbol(chords[0] || 'D');
+      if (first && !first.isSilence) {
+        const dom = indexToNote(first.rootIdx + 7);
+        document.getElementById('key-badge').textContent = `🎯 Tónica: ${first.rootName} • Dominante: ${dom}`;
+        document.getElementById('scales-hint').innerHTML = `Escalas sugeridas: <strong>${first.rootName} Mixolidio / Pentatónica</strong>`;
+      }
+
+      if (!grid) return;
       grid.innerHTML = chords.map((ch, idx) => {
         const parsed = parseChordSymbol(ch);
-        const frets = parsed && !parsed.isSilence ? (getChordVoicings(parsed)[0] || []) : [];
+        const voicings = parsed && !parsed.isSilence ? getChordVoicings(parsed, 14) : [[]];
+        const vIdx = (state.baseVoicingIdx[idx] || 0) % voicings.length;
+        const frets = voicings[vIdx] || [];
         return `
-          <div class="chord-pill-big text-center space-y-1.5">
-            <div class="flex items-center justify-between gap-1">
-              <span class="text-[11px] font-mono-code th-muted font-bold">#${idx + 1}</span>
-              <button onclick="removeBaseChordAt(${idx})" class="text-[11px] th-muted hover:text-rose-400 font-bold px-1">✕</button>
+          <div id="base-chord-card-${idx}" class="chord-pill-big text-center space-y-1.5">
+            <div class="flex items-center justify-between text-xs">
+              <span class="font-mono-code th-muted font-bold">#${idx + 1}</span>
+              <span class="font-mono-code th-input px-1.5 py-0.5 rounded font-bold">${frets.length ? frets.join('-') : 'NC'}</span>
+              <button onclick="removeBaseChordAt(${idx})" class="th-muted hover:text-rose-400 font-bold">✕</button>
             </div>
             <select onchange="replaceBaseChordAt(${idx}, this.value)" class="w-full th-input border rounded-lg px-1.5 py-1 text-xs font-bold th-accent text-center">
               ${buildChordOptionsHtml(ch)}
             </select>
-            <div class="font-serif-title text-2xl font-extrabold th-accent">${parsed ? parsed.display : ch}</div>
+            <div class="font-serif-title text-lg font-extrabold th-accent leading-tight">${parsed ? parsed.display : ch}</div>
             ${renderChordSvg(frets, true)}
-            <button onclick="hearSingleChord('${ch}')" class="w-full th-input border hover:border-amber-500 text-[11px] font-bold py-1 rounded-lg">🔊 Oír</button>
+            <div class="flex gap-1 pt-0.5">
+              <button onclick="hearBaseChordAt(${idx})" class="flex-1 th-input border hover:border-amber-500 text-[11px] font-bold py-1 rounded-lg">🔊 Oír</button>
+              ${voicings.length > 1 ? `<button onclick="cycleBaseChordVoicing(${idx})" title="Cambiar postura en el mástil" class="flex-1 th-input border hover:border-amber-500 text-[11px] font-bold py-1 rounded-lg th-accent">Pos. ${vIdx + 1}/${voicings.length}</button>` : ''}
+            </div>
           </div>
         `;
       }).join('');
+    }
+
+    async function hearBaseChordAt(idx) {
+      const chords = splitChordsText(state.song.base.chordsText);
+      const ch = chords[idx];
+      if (!ch) return;
+      await unlockAudioCtx();
+      const parsed = parseChordSymbol(ch);
+      const vIdx = state.baseVoicingIdx[idx] || 0;
+      playChordStrum(parsed, 0, 0.85, 0.18, false, false, vIdx);
+    }
+
+    function cycleBaseChordVoicing(idx) {
+      const chords = splitChordsText(state.song.base.chordsText);
+      const ch = chords[idx];
+      if (!ch) return;
+      const parsed = parseChordSymbol(ch);
+      const voicings = getChordVoicings(parsed, 14);
+      if (voicings.length <= 1) return;
+      state.baseVoicingIdx[idx] = ((state.baseVoicingIdx[idx] || 0) + 1) % voicings.length;
+      renderBaseChords();
+      hearBaseChordAt(idx);
     }
 
     async function hearSingleChord(sym) {
@@ -2334,16 +2307,18 @@
     function replaceBaseChordAt(idx, newChord) {
       const chords = splitChordsText(state.song.base.chordsText);
       chords[idx] = newChord;
+      state.baseVoicingIdx[idx] = 0;
       state.song.base.chordsText = chords.join(' - ');
       document.getElementById('base-chords-input').value = state.song.base.chordsText;
       renderBaseChords();
-      hearSingleChord(newChord);
+      hearBaseChordAt(idx);
       scheduleAutoSave();
     }
 
     function removeBaseChordAt(idx) {
       const chords = splitChordsText(state.song.base.chordsText);
       chords.splice(idx, 1);
+      state.baseVoicingIdx.splice(idx, 1);
       state.song.base.chordsText = chords.join(' - ');
       document.getElementById('base-chords-input').value = state.song.base.chordsText;
       renderBaseChords();
@@ -2458,7 +2433,7 @@
                 const frets = parsed && !parsed.isSilence ? (getChordVoicings(parsed)[0] || []) : [];
                 return `
                   <div id="struct-chord-${sIdx}-${cIdx}" onclick="hearSingleChord('${ch}')" class="struct-chord-card th-card border rounded-xl p-2 text-center cursor-pointer hover:border-amber-500">
-                    <div class="font-serif-title text-lg font-extrabold th-accent">${parsed ? parsed.display : ch}</div>
+                    <div class="font-serif-title text-sm font-extrabold th-accent mb-0.5">${parsed ? parsed.display : ch}</div>
                     ${renderChordSvg(frets, true)}
                   </div>
                 `;
@@ -2943,7 +2918,7 @@
                 <span class="font-bold th-accent">#${idx + 1}</span>
                 <span>${posLabel}</span>
               </div>
-              <div class="font-serif-title text-2xl font-extrabold th-accent">${parsed.display}</div>
+              <div class="font-serif-title text-lg font-extrabold th-accent leading-tight">${parsed.display}</div>
               <div class="text-[11px] font-mono-code th-muted font-bold">${frets.join('-')}</div>
               ${renderChordSvg(frets, false)}
               <div class="text-[10px] font-mono-code th-muted">${notesUsed}</div>
@@ -2962,7 +2937,7 @@
         const frets = voicings[0] || [];
         return `
           <div onclick='playVoicingFrets(${JSON.stringify(frets)})' class="th-subcard border hover:border-amber-500 rounded-2xl p-3 text-center space-y-1.5 cursor-pointer">
-            <div class="font-serif-title text-2xl font-extrabold th-accent">${parsed.display}</div>
+            <div class="font-serif-title text-lg font-extrabold th-accent leading-tight">${parsed.display}</div>
             <div class="text-[11px] font-mono-code th-muted">${frets.join('-')}</div>
             ${renderChordSvg(frets, false)}
             <button onclick="event.stopPropagation(); setDictType('${t.k}')" class="w-full th-input border hover:border-amber-500 text-[11px] font-bold py-1 rounded-lg th-accent">
