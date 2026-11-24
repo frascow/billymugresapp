@@ -1321,10 +1321,17 @@
         </select>
       </div>
       <div class="row">
-        <input type="text" id="se-add-inp" placeholder="Añadir acorde (ej. Bm7, D5, G o NC para silencio)" style="flex:1;" />
-        <button type="button" class="btn-sm btn-dark" onclick="seAddChord()">+ Añadir</button>
-        <button type="button" class="btn-sm btn-dark" onclick="seAddSilence()">+ 🔇 NC</button>
-      </div>
+        <div style="width:86px;">
+          <span class="lbl-sm">Compás</span>
+          <select id="se-timesig" class="w-100">
+            <option value="4/4">4/4</option>
+            <option value="3/4">3/4</option>
+            <option value="6/8">6/8</option>
+            <option value="2/4">2/4</option>
+            <option value="5/4">5/4</option>
+            <option value="7/8">7/8</option>
+          </select>
+        </div>
         <div style="width:92px;">
           <span class="lbl-sm">Tempo (BPM)</span>
           <input type="number" id="se-bpm" min="40" max="240" class="w-100" />
@@ -1356,8 +1363,9 @@
         <div id="se-chords-list" class="col-sm"></div>
       </div>
       <div class="row">
-        <input type="text" id="se-add-inp" placeholder="Añadir acorde (ej. Bm7, D5, G)" style="flex:1;" />
+        <input type="text" id="se-add-inp" placeholder="Añadir acorde (ej. Bm7, D5, G o NC para silencio)" style="flex:1;" />
         <button type="button" class="btn-sm btn-dark" onclick="seAddChord()">+ Añadir</button>
+        <button type="button" class="btn-sm btn-dark" onclick="seAddSilence()">+ 🔇 NC</button>
       </div>
       <div class="row" style="justify-content:flex-end;">
         <button type="button" class="btn-dark" onclick="closeModal('sec-editor-modal')">Cancelar</button>
