@@ -1981,6 +1981,20 @@
     let isPlayingBase = false;
     let isPlayingAll = false;
 
+    function stopAllPlayback() {
+      isPlayingBase = false;
+      isPlayingAll = false;
+      if (playTimer) {
+        clearTimeout(playTimer);
+        playTimer = null;
+      }
+      clearPlayHighlights();
+      const btnBase = document.getElementById('btn-play-base');
+      const btnAll = document.getElementById('btn-play-all');
+      if (btnBase) btnBase.textContent = '▶ Escuchar Rueda';
+      if (btnAll) btnAll.textContent = '▶ Tocar Todo (Karaoke)';
+    }
+
     function clearPlayHighlights() {
       document.querySelectorAll('.active-play').forEach(el => el.classList.remove('active-play'));
       document.querySelectorAll('.active-sec').forEach(el => el.classList.remove('active-sec'));
