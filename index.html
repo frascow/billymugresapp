@@ -427,6 +427,10 @@
             <button id="btn-rec-start" onclick="startMicRecording(false)" class="bg-rose-600 hover:bg-rose-500 text-white font-bold px-3.5 py-2 rounded-xl text-xs sm:text-sm">● Grabar Solo Mic</button>
             <button id="btn-rec-karaoke" onclick="startMicRecording(true)" class="bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold px-3.5 py-2 rounded-xl text-xs sm:text-sm">●▶ Grabar + Play Karaoke</button>
             <button id="btn-rec-stop" onclick="stopMicRecording()" disabled class="th-input border px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold disabled:opacity-40">■ Parar</button>
+            <label class="th-input border hover:border-amber-500 font-bold px-3.5 py-2 rounded-xl text-xs sm:text-sm cursor-pointer inline-flex items-center gap-1.5">
+              <span>📁 Subir Audio</span>
+              <input type="file" accept="audio/*,.mp3,.wav,.m4a,.ogg,.webm" multiple onchange="handleUploadTakes(event)" class="hidden" />
+            </label>
           </div>
         </div>
 
@@ -1074,7 +1078,8 @@
           chordsText: 'D5 - G - A - D5',
           style: 'folk',
           timeSig: '4/4',
-          bpm: 112
+          bpm: 112,
+          barsPerChord: 1
         },
         structure: [],
         bank: [],
@@ -1110,7 +1115,8 @@
           chordsText: typeof base.chordsText === 'string' ? base.chordsText : 'D5 - G - A - D5',
           style: base.style || 'folk',
           timeSig: base.timeSig || '4/4',
-          bpm: Math.max(40, Math.min(260, Number(base.bpm) || 112))
+          bpm: Math.max(40, Math.min(260, Number(base.bpm) || 112)),
+          barsPerChord: Number(base.barsPerChord) || 1
         },
         structure: Array.isArray(raw.structure) ? raw.structure.map((s, i) => normalizeSectionShape(s, i)) : [],
         bank: Array.isArray(raw.bank) ? raw.bank.map((s, i) => normalizeSectionShape(s, i)) : [],
@@ -1759,10 +1765,10 @@
       const parsed = parseChordSymbol(chords[0] || 'D5');
       playBarRhythm(parsed, state.song.base.style, state.song.base.timeSig, state.song.base.bpm, state.baseVoicingIdx[0] || 0);
     }
-
-    function playBarRhythm(parsedChord, style = 'folk', timeSig = '4/4', bpm = 112, voicingIdx = 0) {
+    function playBarRhythm(parsedChord, style = 'folk', timeSig = '4/4', bpm = 112, voicingIdx = 0, barsScale = 1) {
       if (!parsedChord || parsedChord.isSilence) return;
-      const beats = timeSig === '3/4' ? 3 : (timeSig === '2/4' ? 2 : (timeSig === '6/8' ? 6 : 4));
+      const rawBeats = timeSig === '3/4' ? 3 : (timeSig === '2/4' ? 2 : (timeSig === '6/8' ? 6 : 4));
+      const beats = Math.max(1, Math.round(rawBeats * barsScale));
       const beatSec = timeSig === '6/8' ? (60 / bpm) * 0.5 : (60 / bpm);
 
       if (style === 'waltz' || timeSig === '3/4') {
@@ -1980,16 +1986,11 @@
       document.querySelectorAll('.active-sec').forEach(el => el.classList.remove('active-sec'));
     }
 
-    function stopAllPlayback() {
-      clearTimeout(playTimer);
-      playTimer = null;
-      isPlayingBase = false;
-      isPlayingAll = false;
-      clearPlayHighlights();
-      const bBase = document.getElementById('btn-play-base');
-      const bAll = document.getElementById('btn-play-all');
-      if (bBase) bBase.textContent = '▶ Escuchar Rueda';
-      if (bAll) bAll.textContent = '▶ Tocar Todo (Karaoke)';
+    function getBarDurationMs(timeSig = '4/4', bpm = 112, barsScale = 1) {
+      const safeBpm = Math.max(40, Math.min(260, Number(bpm) || 112));
+      const quarterMs = 60000 / safeBpm;
+      const quartersPerBar = timeSig === '3/4' ? 3 : (timeSig === '2/4' ? 2 : (timeSig === '6/8' ? 3 : 4));
+      return quarterMs * quartersPerBar * barsScale;
     }
 
     async function togglePlayBase() {
@@ -2005,6 +2006,7 @@
       isPlayingBase = true;
       document.getElementById('btn-play-base').textContent = '■ Detener Rueda';
       let idx = 0;
+      let nextTickAt = performance.now();
 
       const step = () => {
         if (!isPlayingBase) return;
@@ -2020,12 +2022,14 @@
 
         const bpm = Math.max(40, Math.min(260, Number(state.song.base.bpm) || 112));
         const timeSig = state.song.base.timeSig || '4/4';
-        const beats = timeSig === '3/4' ? 3 : (timeSig === '2/4' ? 2 : 4);
-        const barMs = (60 / bpm) * beats * 1000;
+        const barsScale = Number(state.song.base.barsPerChord) || 1;
+        const barMs = getBarDurationMs(timeSig, bpm, barsScale);
 
-        playBarRhythm(parsed, state.song.base.style, timeSig, bpm, state.baseVoicingIdx[curIdx] || 0);
+        playBarRhythm(parsed, state.song.base.style, timeSig, bpm, state.baseVoicingIdx[curIdx] || 0, barsScale);
         idx++;
-        playTimer = setTimeout(step, barMs);
+        nextTickAt += barMs;
+        const delay = Math.max(10, nextTickAt - performance.now());
+        playTimer = setTimeout(step, delay);
       };
       step();
     }
@@ -2059,6 +2063,7 @@
       isPlayingAll = true;
       document.getElementById('btn-play-all').textContent = '■ Detener Karaoke';
       let ptr = 0;
+      let nextTickAt = performance.now();
 
       const runStep = () => {
         if (!isPlayingAll) return;
@@ -2088,12 +2093,13 @@
 
         const bpm = Math.max(40, Math.min(260, Number(cur.sec.bpm) || 112));
         const timeSig = cur.sec.timeSig || '4/4';
-        const beats = timeSig === '3/4' ? 3 : (timeSig === '2/4' ? 2 : 4);
-        const barMs = (60 / bpm) * beats * 1000;
+        const barMs = getBarDurationMs(timeSig, bpm, 1);
 
-        playBarRhythm(parsed, cur.sec.style, timeSig, bpm, 0);
+        playBarRhythm(parsed, cur.sec.style, timeSig, bpm, 0, 1);
         ptr++;
-        playTimer = setTimeout(runStep, barMs);
+        nextTickAt += barMs;
+        const delay = Math.max(10, nextTickAt - performance.now());
+        playTimer = setTimeout(runStep, delay);
       };
       runStep();
     }
@@ -2141,6 +2147,10 @@
     function setMetronomeBpm(val) {
       const bpm = Math.max(40, Math.min(260, Number(val) || 112));
       state.song.base.bpm = bpm;
+      if (Array.isArray(state.song.structure)) {
+        state.song.structure.forEach(sec => { sec.bpm = bpm; });
+        renderStructure();
+      }
       document.getElementById('base-bpm-input').value = bpm;
       document.getElementById('global-bpm-lbl').textContent = `${bpm} BPM`;
       renderMetronomeControls(-1);
@@ -2208,7 +2218,12 @@
     function onBaseConfigChange(previewPattern = false) {
       state.song.base.style = document.getElementById('base-style-select').value;
       state.song.base.timeSig = document.getElementById('base-timesig-select').value;
-      state.song.base.bpm = Math.max(40, Math.min(260, Number(document.getElementById('base-bpm-input').value) || 112));
+      const newBpm = Math.max(40, Math.min(260, Number(document.getElementById('base-bpm-input').value) || 112));
+      state.song.base.bpm = newBpm;
+      if (Array.isArray(state.song.structure)) {
+        state.song.structure.forEach(sec => { sec.bpm = newBpm; });
+        renderStructure();
+      }
       document.getElementById('global-bpm-lbl').textContent = `${state.song.base.bpm} BPM`;
       updateBaseStyleDescription();
       renderMetronomeControls(-1);
@@ -2753,15 +2768,35 @@
       renderTakesList();
     }
 
-    // Inspiración y Banco
-    function setInspFilter(role) {
-      state.inspFilter = role;
-      document.querySelectorAll('#insp-filters button').forEach(b => {
-        b.className = b.dataset.role === role
-          ? 'px-3 py-1.5 rounded-lg bg-amber-500 text-stone-950 text-xs font-bold'
-          : 'px-3 py-1.5 rounded-lg th-input border text-xs font-bold';
+    function handleUploadTakes(ev) {
+      const files = Array.from(ev.target.files || []);
+      if (!files.length) return;
+      const author = state.currentUser ? state.currentUser.name : 'Culto';
+
+      files.forEach(file => {
+        const url = URL.createObjectURL(file);
+        const cleanName = file.name.replace(/\.[^/.]+$/, '');
+        const takeItem = {
+          id: 'take_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+          name: `📁 ${cleanName} (${author})`,
+          duration: '--:--',
+          url,
+          createdAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+        state.song.takes.unshift(takeItem);
+
+        const tempAudio = new Audio(url);
+        tempAudio.addEventListener('loadedmetadata', () => {
+          if (isFinite(tempAudio.duration)) {
+            takeItem.duration = formatSeconds(Math.round(tempAudio.duration));
+            renderTakesList();
+          }
+        });
       });
-      renderInspirationList();
+
+      renderTakesList();
+      ev.target.value = '';
+      showToast(`📁 ${files.length === 1 ? 'Grabación subida' : files.length + ' grabaciones subidas'} a la canción`);
     }
 
     function regenerateInspirationBatch() {
