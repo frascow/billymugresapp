@@ -1685,16 +1685,107 @@
       if (changed) renderSongTakesList();
     }
 
-    // =========================================================================
-    // 3. UTILIDADES GENERALES, PERSISTENCIA, AUTH BLINDADA Y TEMA
-    // =========================================================================
-    function showToast(msg) {
-      const box = document.getElementById('toast-box');
-      if (!box) return;
-      box.textContent = msg;
-      box.classList.remove('hidden');
-      clearTimeout(box._timer);
-      box._timer = setTimeout(() => box.classList.add('hidden'), 3200);
+    function extractDriveFileId(driveUrl) {
+      const raw = String(driveUrl || '').trim();
+      if (!raw) return '';
+      const m = raw.match(/\/d\/([a-zA-Z0-9_-]+)/) || raw.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+      return m && m[1] ? m[1] : '';
+    }
+
+    function base64ToBlob(base64, mimeType = 'audio/mp4') {
+      const clean = String(base64 || '').replace(/^data:[^;]+;base64,/, '').replace(/\s+/g, '');
+      const binStr = atob(clean);
+      const len = binStr.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) bytes[i] = binStr.charCodeAt(i);
+      return new Blob([bytes], { type: mimeType || 'audio/mp4' });
+    }
+
+    async function loadAndPlayDriveTake(id, autoPlay = true) {
+      const take = (state.song.takes || []).find(t => t.id === id);
+      if (!take) return;
+      if (take.url) {
+        const el = document.getElementById(`take-audio-${id}`);
+        if (el && autoPlay) el.play().catch(() => {});
+        return;
+      }
+
+      const cached = await getTakeBlobIdb(id);
+      if (cached) {
+        take.url = URL.createObjectURL(cached);
+        renderSongTakesList();
+        if (autoPlay) {
+          setTimeout(() => document.getElementById(`take-audio-${id}`)?.play().catch(() => {}), 40);
+        }
+        return;
+      }
+
+      const fileId = extractDriveFileId(take.driveUrl);
+      if (!fileId) {
+        showToast('⚠️ Este audio no tiene ID válido de Drive');
+        return;
+      }
+
+      take._loadingDrive = true;
+      renderSongTakesList();
+      try {
+        const res = await fetch(`${GAS_WEBAPP_URL}?action=getAudioTake&fileId=${encodeURIComponent(fileId)}&t=${Date.now()}`);
+        const data = await res.json();
+        if (!data || !data.base64Data) {
+          throw new Error(data?.message || 'Sin datos de audio');
+        }
+        const guessedMime = data.mimeType || (/\.m4a$/i.test(take.name) ? 'audio/mp4' : (/\.mp3$/i.test(take.name) ? 'audio/mpeg' : (/\.wav$/i.test(take.name) ? 'audio/wav' : 'audio/webm')));
+        const blob = base64ToBlob(data.base64Data, guessedMime);
+        await saveTakeBlobIdb(id, blob);
+        take.url = URL.createObjectURL(blob);
+        delete take._loadingDrive;
+        renderSongTakesList();
+        if (autoPlay) {
+          setTimeout(() => document.getElementById(`take-audio-${id}`)?.play().catch(() => {}), 50);
+        }
+      } catch (e) {
+        delete take._loadingDrive;
+        const directStreamUrl = `https://docs.google.com/uc?export=open&id=${encodeURIComponent(fileId)}`;
+        take.url = directStreamUrl;
+        take._fallbackDriveUrl = `https://drive.usercontent.google.com/download?id=${encodeURIComponent(fileId)}&export=download&confirm=t`;
+        renderSongTakesList();
+        if (autoPlay) {
+          setTimeout(() => document.getElementById(`take-audio-${id}`)?.play().catch(() => {}), 60);
+        }
+      }
+    }
+
+    function handleTakeAudioError(id) {
+      const take = (state.song.takes || []).find(t => t.id === id);
+      if (!take) return;
+      if (take._fallbackDriveUrl && take.url !== take._fallbackDriveUrl) {
+        take.url = take._fallbackDriveUrl;
+        delete take._fallbackDriveUrl;
+        renderSongTakesList();
+        setTimeout(() => document.getElementById(`take-audio-${id}`)?.play().catch(() => {}), 60);
+        return;
+      }
+      take.url = '';
+      take._streamBlocked = true;
+      renderSongTakesList();
+    }
+
+    function saveRenameTake(id) {
+      const take = (state.song.takes || []).find(t => t.id === id);
+      if (!take) return;
+      const inp = document.getElementById(`take-rename-inp-${id}`);
+      const nextName = (inp ? inp.value : '').trim();
+      delete take._renaming;
+      if (nextName && nextName !== take.name) {
+        take.name = nextName;
+        saveLocalState();
+        const projIdx = state.projects.findIndex(p => p.id === state.song.id);
+        if (projIdx >= 0) {
+          saveCurrentProject(true, false);
+        }
+        showToast(`✎ Audio renombrado a "${nextName}"`);
+      }
+      renderSongTakesList();
     }
 
     function markCultUnlocked() {
@@ -4457,22 +4548,44 @@
         list.innerHTML = `<div class="text-xs th-muted text-center py-4">Aún no hay tomas grabadas para esta canción.</div>`;
         return;
       }
-      list.innerHTML = takes.map(t => `
+      const esc = (v) => String(v || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      list.innerHTML = takes.map(t => {
+        return `
         <div class="th-card border rounded-xl p-2.5 space-y-1.5 text-xs">
-          <div class="flex items-center justify-between gap-2">
-            <strong class="truncate">${t.name}</strong>
-            <span class="font-mono-code text-[11px] th-muted shrink-0">${t.duration || ''}</span>
-          </div>
-          ${t.url ? `<audio controls src="${t.url}" class="w-full h-8"></audio>` : `<div class="text-[11px] th-muted">Audio guardado en Drive</div>`}
+          ${t._renaming ? `
+            <form onsubmit="event.preventDefault(); saveRenameTake('${t.id}');" class="flex items-center gap-1.5">
+              <input id="take-rename-inp-${t.id}" type="text" value="${esc(t.name)}" onkeydown="if(event.key==='Escape'){event.preventDefault();cancelRenameTake('${t.id}');}" class="flex-1 th-input border rounded-lg px-2 py-1 text-xs font-bold focus:outline-none focus:border-amber-500" />
+              <button type="submit" class="bg-emerald-600 hover:bg-emerald-500 text-white px-2.5 py-1 rounded-lg font-bold">✓</button>
+              <button type="button" onclick="cancelRenameTake('${t.id}')" class="th-input border px-2 py-1 rounded-lg font-bold">✕</button>
+            </form>
+          ` : `
+            <div class="flex items-center justify-between gap-2">
+              <strong class="truncate">${esc(t.name)}</strong>
+              <span class="font-mono-code text-[11px] th-muted shrink-0">${esc(t.duration || '')}</span>
+            </div>
+          `}
+          ${t.url
+            ? `<audio id="take-audio-${t.id}" controls preload="auto" onerror="handleTakeAudioError('${t.id}')" src="${esc(t.url)}" class="w-full h-8"></audio>`
+            : (t.driveUrl
+              ? `<div class="space-y-1.5">
+                  <button type="button" onclick="loadAndPlayDriveTake('${t.id}', true)" ${t._loadingDrive ? 'disabled' : ''} class="w-full bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-stone-950 font-extrabold py-2 px-3 rounded-xl text-xs flex items-center justify-center gap-2">
+                    <span>${t._loadingDrive ? '⏳ Cargando audio de Drive...' : '▶ Reproducir Audio de Drive'}</span>
+                  </button>
+                  ${t._streamBlocked ? `<div class="text-[11px] text-amber-400 text-center">⚠️ Google Drive requiere abrir el enlace <strong>↗ Drive</strong> en una pestaña (o compartir el archivo como "Cualquier persona con el enlace").</div>` : ''}
+                </div>`
+              : `<div class="text-[11px] th-muted">Audio no disponible en este dispositivo</div>`)
+          }
           <div class="flex flex-wrap items-center justify-end gap-1.5">
+            <button type="button" onclick="startRenameTake('${t.id}')" class="th-input border hover:border-amber-500 px-2.5 py-1 rounded-lg font-bold">✎ Renombrar</button>
             ${t.driveUrl
-              ? `<a href="${t.driveUrl}" target="_blank" rel="noopener" class="px-2.5 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/35 text-emerald-400 font-bold">↗ Drive</a>`
+              ? `<a href="${esc(t.driveUrl)}" target="_blank" rel="noopener" class="px-2.5 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/35 text-emerald-400 font-bold">↗ Drive</a>`
               : `<button type="button" onclick="uploadTakeToDrive('${t.id}')" class="th-input border hover:border-amber-500 px-2.5 py-1 rounded-lg font-bold">☁️ Subir a Drive</button>`
             }
             <button type="button" onclick="deleteTake('${t.id}')" class="th-input border hover:border-rose-500 text-rose-400 px-2.5 py-1 rounded-lg font-bold">🗑 Borrar</button>
           </div>
         </div>
-      `).join('');
+      `;
+      }).join('');
     }
 
     // =========================================================================
@@ -4884,7 +4997,7 @@
     async function saveCurrentProject(toCloud = true, notify = true) {
       state.song.updatedAt = Date.now();
       state.song.lockedBy = state.currentUser?.name || state.song.lockedBy || null;
-      pushSongVersionSnapshot(toCloud ? 'Guardado en nube' : 'Guardado local', true);
+      pushSongVersionSnapshot('Guardado en nube', true);
       const cleanSong = JSON.parse(JSON.stringify(state.song));
       cleanSong.takes = (cleanSong.takes || []).map(t => ({
         id: t.id,
@@ -4898,7 +5011,6 @@
       const idx = state.projects.findIndex(p => p.id === cleanSong.id);
       if (idx >= 0) state.projects[idx] = cleanSong;
       else state.projects.unshift(cleanSong);
-      createJsonBackupSnapshot(`Auto-backup (${cleanSong.title || 'Tema'})`, true);
       saveLocalState();
       renderSongsFoldersPage();
 
@@ -4914,14 +5026,13 @@
             bank: state.bank
           })
         });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const badge = document.getElementById('cloud-status-badge');
-        if (badge) {
-          badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400"></span> Drive Guardado`;
+        const data = await res.json().catch(() => ({}));
+        if (data && data.status === 'error') {
+          throw new Error(data.message || 'Error en Apps Script');
         }
         if (notify) showToast(`☁️ Guardado en Google Drive (${state.projects.length} temas)`);
       } catch (e) {
-        if (notify) showToast('⚠️ Guardado localmente (revisa permisos/URL de Google Apps Script)');
+        if (notify) showToast('⚠️ Guardado localmente (revisa conexión a Drive)');
       } finally {
         hideGlobalProgress();
       }
@@ -4930,14 +5041,9 @@
     async function syncProjectsFromCloud(notify = false) {
       if (notify) showGlobalProgress(35, 'Sincronizando repertorio...');
       try {
-        const res = await fetch(`${GAS_WEBAPP_URL}?action=getProjects&t=${Date.now()}`, {
-          method: 'GET',
-          cache: 'no-store'
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const res = await fetch(`${GAS_WEBAPP_URL}?action=getProjects&t=${Date.now()}`);
         const data = await res.json();
         const cloudProjects = Array.isArray(data.projects) ? data.projects : null;
-
         if (cloudProjects) {
           if (cloudProjects.length === 0 && state.projects.length > 0) {
             createJsonBackupSnapshot('Respaldo local (Drive estaba vacío)', true);
@@ -4949,21 +5055,19 @@
             const byId = new Map();
             cloudProjects.forEach(p => { if (p && p.id) byId.set(p.id, p); });
             state.projects.forEach(p => {
-              if (!p || !p.id) return;
-              const existing = byId.get(p.id);
-              if (!existing || (Number(p.updatedAt) || 0) > (Number(existing.updatedAt) || 0)) {
-                byId.set(p.id, p);
-              }
+              if (p && p.id && !byId.has(p.id)) byId.set(p.id, p);
             });
             state.projects = [...byId.values()].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
 
-            // Si el tema abierto es el borrador inicial vacío o tiene una versión más nueva en Drive, cargarlo
-            const isDefaultPlaceholder = state.song.title === 'Nuevo Himno del Culto' && !(state.song.structure || []).length;
-            const matchingCloud = state.projects.find(p => p.id === state.song.id);
-            if (matchingCloud && (Number(matchingCloud.updatedAt) || 0) > (Number(state.song.updatedAt) || 0)) {
-              state.song = JSON.parse(JSON.stringify(matchingCloud));
+            const matchingOpen = state.projects.find(p => p.id === state.song.id);
+            if (matchingOpen && (matchingOpen.updatedAt || 0) > (state.song.updatedAt || 0)) {
+              state.song = JSON.parse(JSON.stringify(matchingOpen));
               applySongToUI();
-            } else if (isDefaultPlaceholder && state.projects.length > 0) {
+            } else if (
+              state.projects.length &&
+              state.song.title === 'Nuevo Himno del Culto' &&
+              (!state.song.structure || state.song.structure.length === 0)
+            ) {
               state.song = JSON.parse(JSON.stringify(state.projects[0]));
               applySongToUI();
             }
@@ -4972,22 +5076,14 @@
         if (Array.isArray(data.bank) && data.bank.length) {
           state.bank = data.bank;
         }
-        const badge = document.getElementById('cloud-status-badge');
-        if (badge) {
-          badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400"></span> Drive (${state.projects.length})`;
-        }
         saveLocalState();
         renderSongsModalList();
         renderSongsFoldersPage();
         renderBankList();
         if (notify && (!cloudProjects || cloudProjects.length > 0 || state.projects.length === 0)) {
-          showToast(`☁️ Sincronizadas ${state.projects.length} canciones desde Drive`);
+          showToast(`☁️ Sincronizadas ${state.projects.length} canciones`);
         }
       } catch (e) {
-        const badge = document.getElementById('cloud-status-badge');
-        if (badge) {
-          badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-400"></span> Sin conexión Drive`;
-        }
         if (notify) showToast('⚠️ No se pudo conectar con Google Drive');
       } finally {
         hideGlobalProgress();
