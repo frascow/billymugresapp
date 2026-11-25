@@ -1018,6 +1018,20 @@
     </div>
   </div>
 
+  <!-- MODAL 4: VARIACIONES ARMÓNICAS DE UN ACORDE -->
+  <div id="chord-variations-modal" onclick="if (event.target === this) closeChordVariationsModal()" class="fixed inset-0 z-50 hidden bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+    <div class="th-card border rounded-2xl max-w-md w-full max-h-[85vh] flex flex-col p-4 sm:p-5 shadow-2xl space-y-3">
+      <div class="flex items-center justify-between gap-2 border-b pb-2.5" style="border-color: var(--border-main);">
+        <div class="min-w-0">
+          <h3 id="cv-modal-title" class="font-serif-title text-lg font-bold truncate">Variaciones del acorde</h3>
+          <p id="cv-modal-subtitle" class="text-xs th-muted">Opciones compatibles con la armonía de tu rueda</p>
+        </div>
+        <button type="button" onclick="closeChordVariationsModal()" class="th-input border px-2.5 py-1 rounded-lg text-xs font-bold shrink-0">✕</button>
+      </div>
+      <div id="cv-modal-list" class="space-y-2 overflow-y-auto flex-1 pr-0.5"></div>
+    </div>
+  </div>
+
   <script>
     // =========================================================================
     // 1. CONSTANTES MUSICALES, INSTRUMENTOS, MIEMBROS Y ESCALAS
@@ -2620,56 +2634,155 @@
       saveLocalState();
     }
 
-    function appendQuickChordFromSelect(sel) {
-      if (!sel || !sel.value) return;
-      appendChordTokenWithAutoFraction(sel.value);
-      sel.value = '';
-    }
+    function getHarmonicVariationsForChord(rawToken, parsed) {
+      const m = String(rawToken || '').trim().match(/^([A-Ga-g][#b]?)(.*)$/);
+      if (!m || !parsed || parsed.isSilence) return [];
+      let rawRoot = m[1][0].toUpperCase() + (m[1].slice(1) || '');
+      if (FLAT_TO_SHARP[rawRoot]) rawRoot = FLAT_TO_SHARP[rawRoot];
 
-    function insertSilenceToBase() {
-      appendChordTokenWithAutoFraction('NC');
-    }
-
-    function setBaseChordDuration(idx, val) {
-      if (!state.song.base.durations) state.song.base.durations = {};
-      state.song.base.durations[idx] = parseFloat(val) || 1;
-      renderBaseChords();
-      recordSongHistory();
-      saveLocalState();
-    }
-
-    function cycleBaseChordVoicing(idx) {
       const chords = splitChordsText(state.song.base.chordsText);
-      const parsed = parseChordSymbol(chords[idx]);
+      const firstValid = chords.map(c => parseChordSymbol(c)).find(p => p && !p.isSilence);
+      const keyRootPc = firstValid ? firstValid.rootPc : parsed.rootPc;
+      const deg = (parsed.rootPc - keyRootPc + 12) % 12;
+
+      const suf = parsed.suffix || 'maj';
+      const isMinor = ['m', 'm7', 'm6', 'm9', 'm(maj7)'].includes(suf);
+      const isDom = ['7', '9', '13', '7sus4', 'aug7'].includes(suf);
+      const isDim = ['dim', 'dim7', 'm7b5'].includes(suf);
+
+      const COLOR_LABELS = {
+        'maj': 'Tríada mayor limpia',
+        '5': 'Power chord (abierto sin 3ª)',
+        'maj7': '7ª mayor (brillo cálido)',
+        '6': '6ª mayor (color folk / vintage)',
+        'add9': 'Añadida 9ª (aire abierto)',
+        'sus2': 'Suspendido 2ª (flotante)',
+        'sus4': 'Suspendido 4ª (tensión suave)',
+        '7': '7ª dominante (empuje folk/blues)',
+        '9': '9ª dominante (swing / ragtime)',
+        '13': '13ª dominante (color jazz-folk)',
+        '7sus4': '7ª sus4 (resolución clásica)',
+        'm': 'Tríada menor limpia',
+        'm7': 'Menor 7ª (suave y melódico)',
+        'm6': 'Menor 6ª (toque dórico / gypsy)',
+        'm9': 'Menor 9ª (expresivo)',
+        'm(maj7)': 'Menor con 7ª mayor (dramático)',
+        'dim': 'Disminuido de paso',
+        'dim7': 'Disminuido 7ª (tensión gypsy)',
+        'm7b5': 'Semidisminuido (giro menor)'
+      };
+
+      let suffixList = [];
+      if (isDim) {
+        suffixList = ['dim7', 'm7b5', 'dim', 'm6'];
+      } else if (isMinor) {
+        suffixList = ['m7', 'm6', 'm9', 'sus2', 'sus4', 'm(maj7)', 'm', '5'];
+      } else if (isDom || deg === 7) {
+        suffixList = ['7', '9', '7sus4', '13', 'sus4', '6', 'add9', 'maj', '5'];
+      } else if (deg === 0 || deg === 5) {
+        suffixList = ['maj7', '6', 'add9', 'sus2', 'sus4', '5', '7', 'maj'];
+      } else {
+        suffixList = ['add9', '6', 'sus2', 'sus4', '5', 'maj7', '7', 'maj'];
+      }
+
+      const items = [];
+      const seen = new Set();
+      suffixList.forEach(s => {
+        if (s === suf) return;
+        const tok = s === 'maj' ? rawRoot : (rawRoot + s);
+        if (seen.has(tok)) return;
+        seen.add(tok);
+        items.push({
+          token: tok,
+          desc: COLOR_LABELS[s] || 'Variación armónica',
+          group: 'Mismo acorde'
+        });
+      });
+
+      // Sustituto relativo diatónico
+      if (!isDim) {
+        if (isMinor) {
+          const relMaj = transposeNoteName(rawRoot, 3);
+          if (!seen.has(relMaj)) items.push({ token: relMaj, desc: 'Relativo mayor (abre la armonía)', group: 'Sustituto armónico' });
+        } else {
+          const relMin = transposeNoteName(rawRoot, 9) + 'm';
+          if (!seen.has(relMin)) items.push({ token: relMin, desc: 'Relativo menor (tono más íntimo)', group: 'Sustituto armónico' });
+        }
+      }
+
+      return items;
+    }
+
+    function openChordVariationsModal(idx) {
+      const chords = splitChordsText(state.song.base.chordsText);
+      const rawToken = chords[idx];
+      const parsed = parseChordSymbol(rawToken);
+      if (!parsed || parsed.isSilence) return;
+
+      const variations = getHarmonicVariationsForChord(rawToken, parsed);
+      const titleEl = document.getElementById('cv-modal-title');
+      const subEl = document.getElementById('cv-modal-subtitle');
+      const listEl = document.getElementById('cv-modal-list');
+      if (!listEl) return;
+
+      if (titleEl) {
+        titleEl.innerHTML = `Variaciones de <span class="th-accent">${parsed.display}</span> <em class="text-sm font-normal th-muted">(${chordToLatin(parsed)})</em>`;
+      }
+      if (subEl) {
+        subEl.textContent = `Acorde #${idx + 1} • Pulsa 🔊 para preescuchar o Usar para sustituirlo`;
+      }
+
+      listEl.innerHTML = variations.map(v => {
+        const vp = parseChordSymbol(v.token);
+        if (!vp || vp.isSilence) return '';
+        const latin = chordToLatin(vp);
+        return `
+          <div class="th-subcard border rounded-xl p-2.5 flex items-center justify-between gap-2 text-xs">
+            <div class="min-w-0 flex-1">
+              <div class="flex items-baseline gap-1.5 flex-wrap">
+                <strong class="font-serif-title text-base th-accent">${vp.display}</strong>
+                <em class="text-[11px] th-muted">${latin}</em>
+                <span class="text-[10px] font-mono-code px-1.5 py-0.5 rounded bg-amber-500/10 th-muted">${v.group}</span>
+              </div>
+              <div class="text-[11px] th-muted truncate">${v.desc}</div>
+            </div>
+            <div class="flex items-center gap-1.5 shrink-0">
+              <button type="button" onclick="previewChordVariation('${v.token}')" class="th-input border hover:border-amber-500 px-2.5 py-1.5 rounded-lg font-bold">🔊</button>
+              <button type="button" onclick="applyChordVariation(${idx}, '${v.token}')" class="bg-amber-500 hover:bg-amber-400 text-stone-950 px-3 py-1.5 rounded-lg font-extrabold">Usar</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      document.getElementById('chord-variations-modal')?.classList.remove('hidden');
+    }
+
+    function closeChordVariationsModal() {
+      document.getElementById('chord-variations-modal')?.classList.add('hidden');
+    }
+
+    function previewChordVariation(rawToken) {
+      const parsed = parseChordSymbol(rawToken);
       if (!parsed || parsed.isSilence) return;
       const voicings = getChordVoicings(parsed, 16);
-      if (!state.song.base.voicings) state.song.base.voicings = {};
-      const cur = state.song.base.voicings[idx] || 0;
-      const next = (cur + 1) % voicings.length;
-      state.song.base.voicings[idx] = next;
-      playChordStrum(voicings[next], 0, 'down', 0.9, 0.22);
-      renderBaseChords();
-      recordSongHistory();
-      saveLocalState();
+      if (voicings.length) playChordStrum(voicings[0], 0, 'down', 1.0, 0.23);
     }
 
-    function removeBaseChordAt(idx) {
+    function applyChordVariation(idx, rawToken) {
       const chords = splitChordsText(state.song.base.chordsText);
-      chords.splice(idx, 1);
-      const newVoicings = {};
-      const newDurations = {};
-      chords.forEach((_, i) => {
-        const oldIdx = i >= idx ? i + 1 : i;
-        if (state.song.base.voicings?.[oldIdx] !== undefined) newVoicings[i] = state.song.base.voicings[oldIdx];
-        if (state.song.base.durations?.[oldIdx] !== undefined) newDurations[i] = state.song.base.durations[oldIdx];
-      });
-      state.song.base.voicings = newVoicings;
-      state.song.base.durations = newDurations;
+      if (idx < 0 || idx >= chords.length) return;
+      chords[idx] = rawToken;
       state.song.base.chordsText = chords.join(' - ');
+      if (!state.song.base.voicings) state.song.base.voicings = {};
+      state.song.base.voicings[idx] = 0;
       document.getElementById('base-chords-input').value = state.song.base.chordsText;
+      closeChordVariationsModal();
+      previewChordVariation(rawToken);
       renderBaseChords();
       recordSongHistory();
       saveLocalState();
+      const vp = parseChordSymbol(rawToken);
+      showToast(`✨ Acorde #${idx + 1} cambiado a ${vp ? vp.display : rawToken}`);
     }
 
     function onBaseInputChange() {
@@ -2801,6 +2914,7 @@
               <button type="button" onclick="playChordStrum([${frets.join(',')}], 0, 'down', 0.95, 0.22)" class="th-input border hover:border-amber-500 rounded-lg py-1.5 px-1 text-[10px] sm:text-[11px] font-bold truncate">🔊 Oír</button>
               <button type="button" onclick="cycleBaseChordVoicing(${idx})" class="th-input border hover:border-amber-500 rounded-lg py-1.5 px-1 text-[10px] sm:text-[11px] font-bold th-accent truncate">Pos.${vIdx + 1}/${voicings.length}</button>
             </div>
+            <button type="button" onclick="openChordVariationsModal(${idx})" class="w-full th-input border hover:border-amber-500 rounded-lg py-1 px-1.5 text-[10px] sm:text-[11px] font-bold th-accent truncate">✨ Variaciones</button>
             <select onchange="setBaseChordDuration(${idx}, this.value)" title="Duración del acorde" class="w-full th-input border rounded-lg px-1.5 sm:px-2 py-1 text-[10px] sm:text-[11px] font-bold text-center">
               <option value="1" ${dur === 1 ? 'selected' : ''}>⏱ 1 compás</option>
               <option value="0.75" ${dur === 0.75 ? 'selected' : ''}>⏱ 0,75</option>
