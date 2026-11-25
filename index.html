@@ -2558,15 +2558,45 @@
       const ctx = getAudioCtx();
       if (!ctx) return;
       const now = ctx.currentTime + Math.max(0, delaySec);
+
+      // Golpe de madera (woodblock seco) con caída rápida
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(accent ? 1320 : 880, now);
-      gain.gain.setValueAtTime(accent ? 0.24 : 0.14, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.045);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(accent ? 1750 : 1220, now);
+      osc.frequency.exponentialRampToValueAtTime(accent ? 620 : 440, now + 0.028);
+
+      const peak = accent ? 0.52 : 0.34;
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.linearRampToValueAtTime(peak, now + 0.0015);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.032);
+
       osc.connect(gain);
       gain.connect(ctx.destination);
       osc.start(now);
+      osc.stop(now + 0.036);
+
+      // Transitorio percusivo corto (baqueta)
+      const clickLen = Math.floor(ctx.sampleRate * 0.012);
+      const clickBuf = ctx.createBuffer(1, clickLen, ctx.sampleRate);
+      const ch = clickBuf.getChannelData(0);
+      for (let i = 0; i < clickLen; i++) {
+        ch[i] = (Math.random() * 2 - 1) * Math.exp(-i / (clickLen * 0.22));
+      }
+      const noiseSrc = ctx.createBufferSource();
+      noiseSrc.buffer = clickBuf;
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'bandpass';
+      filter.frequency.value = accent ? 2600 : 2100;
+      filter.Q.value = 2.4;
+      const noiseGain = ctx.createGain();
+      noiseGain.gain.setValueAtTime(accent ? 0.35 : 0.22, now);
+      noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.012);
+
+      noiseSrc.connect(filter);
+      filter.connect(noiseGain);
+      noiseGain.connect(ctx.destination);
+      noiseSrc.start(now);
     }
 
     function playBarRhythm(parsedChord, voicingIdx, style, timeSig, bpm, fraction = 1, beatOffset = 0) {
@@ -2813,15 +2843,18 @@
         renderMetronomeControls(metroBeatIdx % beats);
         metroBeatIdx++;
       };
-      tick();
       const bpm = Number(state.song.base.bpm) || 112;
       const stepMs = (state.song.base.timeSig === '6/8') ? (30000 / bpm) : (60000 / bpm);
-      metroTimer = setInterval(tick, stepMs);
       document.getElementById('metro-led')?.classList.replace('bg-stone-500', 'bg-emerald-400');
       const pill = document.getElementById('metro-status-pill');
       if (pill) pill.textContent = 'Activo';
       const btn = document.getElementById('btn-metro-panel');
       if (btn) btn.textContent = '■ Detener';
+      ensureAudioReady().then(() => {
+        if (metroTimer) return;
+        tick();
+        metroTimer = setInterval(tick, stepMs);
+      });
     }
 
     function setMetronomeBpm(val) {
@@ -2872,13 +2905,48 @@
         const noteName = midiToNote(midi);
         const freq = midiToFreq(midi).toFixed(1);
         return `
-          <button type="button" onclick="playPluckNote(${midi}, 0, 1.4, 0.28)" class="th-subcard border hover:border-amber-500 rounded-2xl p-3 text-center transition-all">
+          <button type="button" onclick="playTunerReferenceString(${midi})" class="th-subcard border hover:border-amber-500 rounded-2xl p-3 text-center transition-all">
             <div class="text-[11px] font-mono-code th-muted">Cuerda ${idx + 1}</div>
             <div class="font-serif-title text-2xl font-extrabold th-accent">${noteName}</div>
             <div class="text-[11px] font-mono-code th-muted">${freq} Hz</div>
           </button>
         `;
       }).join('');
+    }
+
+    async function playTunerReferenceString(midi) {
+      const ctx = await ensureAudioReady();
+      if (!ctx) return;
+      const freq = midiToFreq(midi);
+      const now = ctx.currentTime;
+
+      // Pulsación del instrumento + tono guía armónico limpio para afinar con precisión
+      playPluckNote(midi, 0, 1.8, 0.28);
+
+      const osc1 = ctx.createOscillator();
+      const osc2 = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc1.type = 'triangle';
+      osc2.type = 'sine';
+      osc1.frequency.setValueAtTime(freq, now);
+      osc2.frequency.setValueAtTime(freq * 2, now);
+
+      const subGain = ctx.createGain();
+      subGain.gain.setValueAtTime(0.28, now);
+
+      gain.gain.setValueAtTime(0.001, now);
+      gain.gain.linearRampToValueAtTime(0.22, now + 0.03);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 1.65);
+
+      osc1.connect(gain);
+      osc2.connect(subGain);
+      subGain.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc1.start(now);
+      osc2.start(now);
+      osc1.stop(now + 1.7);
+      osc2.stop(now + 1.7);
     }
 
     function updateMicPermissionUI() {
@@ -2997,7 +3065,7 @@
         markCultUnlocked();
         updateMicPermissionUI();
         await refreshAudioInputDevices(false);
-        const ctx = getAudioCtx();
+        const ctx = await ensureAudioReady();
         const src = ctx.createMediaStreamSource(tunerStream);
         tunerAnalyser = ctx.createAnalyser();
         tunerAnalyser.fftSize = 2048;
