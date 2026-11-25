@@ -1714,18 +1714,25 @@
       take._loadingDrive = true;
       renderSongTakesList();
       try {
-        const query = fileId
-          ? `action=getAudioTake&fileId=${encodeURIComponent(fileId)}&fileName=${encodeURIComponent(take.name || '')}&songTitle=${encodeURIComponent(state.song.title || '')}&t=${Date.now()}`
-          : `action=getAudioTake&fileName=${encodeURIComponent(take.name || '')}&songTitle=${encodeURIComponent(state.song.title || '')}&t=${Date.now()}`;
-        const res = await fetch(`${GAS_WEBAPP_URL}?${query}`);
+        const params = new URLSearchParams({
+          action: 'getAudioTake',
+          takeId: take.id || '',
+          fileName: take.name || '',
+          songTitle: state.song.title || '',
+          t: String(Date.now())
+        });
+        if (fileId) params.set('fileId', fileId);
+
+        const res = await fetch(`${GAS_WEBAPP_URL}?${params.toString()}`);
         const data = await res.json();
-        if (!data || !data.base64Data) {
-          throw new Error(data?.message || 'Sin datos de audio');
+        const remoteId = data?.fileId || data?.id || extractDriveFileId(data?.url || data?.fileUrl || '') || fileId;
+        if (remoteId) {
+          take.driveFileId = remoteId;
+          take.driveUrl = `https://drive.google.com/file/d/${remoteId}/view`;
+          delete take._missingDriveId;
         }
-        const resolvedId = data.fileId || data.id || fileId;
-        if (resolvedId) {
-          take.driveFileId = resolvedId;
-          take.driveUrl = `https://drive.google.com/file/d/${resolvedId}/view`;
+        if (!data || !data.base64Data) {
+          throw new Error(data?.message || 'Sin datos binarios directos');
         }
         const guessedMime = data.mimeType || (/\.m4a$/i.test(take.name) ? 'audio/mp4' : (/\.mp3$/i.test(take.name) ? 'audio/mpeg' : (/\.wav$/i.test(take.name) ? 'audio/wav' : 'audio/webm')));
         const blob = base64ToBlob(data.base64Data, guessedMime);
@@ -1739,15 +1746,17 @@
         }
       } catch (e) {
         delete take._loadingDrive;
-        if (!fileId) {
+        const resolvedFileId = extractDriveFileId(take.driveUrl) || take.driveFileId || '';
+        if (!resolvedFileId) {
           take._missingDriveId = true;
           renderSongTakesList();
-          showToast('⚠️ Ese audio antiguo se subió sin ID; vuelve a subirlo desde el dispositivo original');
+          showToast('⚠️ No se encontró el archivo en Drive; súbelo de nuevo desde el dispositivo original');
           return;
         }
-        const directStreamUrl = `https://docs.google.com/uc?export=open&id=${encodeURIComponent(fileId)}`;
+        const directStreamUrl = `https://docs.google.com/uc?export=open&id=${encodeURIComponent(resolvedFileId)}`;
         take.url = directStreamUrl;
-        take._fallbackDriveUrl = `https://drive.usercontent.google.com/download?id=${encodeURIComponent(fileId)}&export=download&confirm=t`;
+        take._fallbackDriveUrl = `https://drive.usercontent.google.com/download?id=${encodeURIComponent(resolvedFileId)}&export=download&confirm=t`;
+        saveLocalState();
         renderSongTakesList();
         if (autoPlay) {
           setTimeout(() => document.getElementById(`take-audio-${id}`)?.play().catch(() => {}), 60);
@@ -1935,6 +1944,7 @@
           author: t.author,
           duration: t.duration,
           createdAt: t.createdAt,
+          driveFileId: t.driveFileId || extractDriveFileId(t.driveUrl) || '',
           driveUrl: t.driveUrl || ''
         }));
         const snapshot = {
@@ -4542,33 +4552,52 @@
           reader.readAsDataURL(blob);
         });
         const ext = /\.m4a$/i.test(take.name) ? '' : (/\.mp3$/i.test(take.name) ? '' : (/\.wav$/i.test(take.name) ? '' : '.webm'));
+        const uploadFileName = `${state.song.title}_${take.name}${ext}`;
         const res = await fetch(GAS_WEBAPP_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
           body: JSON.stringify({
             action: 'uploadAudioTake',
+            takeId: take.id,
             songTitle: state.song.title,
-            fileName: `${state.song.title}_${take.name}${ext}`,
+            fileName: uploadFileName,
             mimeType: blob.type || 'audio/webm',
             base64Data: base64
           })
         });
-        const data = await res.json().catch(() => ({}));
-        const rawUrl = data.url || data.fileUrl || data.webViewLink || '';
-        const returnedId = data.fileId || data.id || extractDriveFileId(rawUrl);
-        if (!returnedId && !extractDriveFileId(rawUrl)) {
-          throw new Error(data.message || 'Drive no devolvió el ID del archivo');
+        const rawText = await res.text();
+        let data = {};
+        try { data = JSON.parse(rawText); } catch (err) {}
+
+        const rawUrl = data.url || data.fileUrl || data.webViewLink || data.downloadUrl || '';
+        const idMatch = rawText.match(/\/d\/([a-zA-Z0-9_-]{15,})/) || rawText.match(/[?&]id=([a-zA-Z0-9_-]{15,})/);
+        let returnedId = data.fileId || data.id || data.audioId || extractDriveFileId(rawUrl) || (idMatch ? idMatch[1] : '');
+
+        if (!returnedId) {
+          try {
+            const lookupRes = await fetch(`${GAS_WEBAPP_URL}?action=getAudioTake&takeId=${encodeURIComponent(take.id)}&fileName=${encodeURIComponent(uploadFileName)}&songTitle=${encodeURIComponent(state.song.title || '')}&metaOnly=1&t=${Date.now()}`);
+            const lookupData = await lookupRes.json().catch(() => ({}));
+            returnedId = lookupData.fileId || lookupData.id || extractDriveFileId(lookupData.url || lookupData.fileUrl || '') || '';
+          } catch (err) {}
         }
-        take.driveFileId = returnedId || extractDriveFileId(rawUrl);
-        take.driveUrl = extractDriveFileId(rawUrl)
-          ? rawUrl
-          : `https://drive.google.com/file/d/${take.driveFileId}/view`;
+
+        if (returnedId) {
+          take.driveFileId = returnedId;
+          take.driveUrl = extractDriveFileId(rawUrl)
+            ? rawUrl
+            : `https://drive.google.com/file/d/${returnedId}/view`;
+        } else if (rawUrl && /^https?:\/\//i.test(rawUrl)) {
+          take.driveUrl = rawUrl;
+        } else {
+          take.driveUrl = 'https://drive.google.com';
+        }
+
         delete take._missingDriveId;
         delete take._streamBlocked;
         renderSongTakesList();
         saveLocalState();
         saveCurrentProject(true, false);
-        showToast('☁️ Toma subida y vinculada en Drive');
+        showToast(take.driveFileId ? '☁️ Toma subida y enlazada en Drive' : '☁️ Toma subida a Drive');
       } catch (e) {
         showToast(`⚠️ Error al subir a Drive: ${e.message || 'revisa el script'}`);
       } finally {
@@ -5052,6 +5081,7 @@
         author: t.author,
         duration: t.duration,
         createdAt: t.createdAt,
+        driveFileId: t.driveFileId || extractDriveFileId(t.driveUrl) || '',
         driveUrl: t.driveUrl || ''
       }));
 
