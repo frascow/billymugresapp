@@ -494,6 +494,7 @@
           <div class="flex items-center gap-3 sm:gap-4 shrink-0">
             <div class="text-center">
               <div id="atril-chord-big" class="font-serif-title text-3xl sm:text-5xl font-extrabold th-accent">--</div>
+              <div id="atril-chord-latin" class="text-xs sm:text-sm italic th-muted leading-tight">&nbsp;</div>
               <div class="text-xs th-muted">Siguiente: <strong id="atril-next-lbl">--</strong></div>
             </div>
             <div id="atril-diagram-box" class="min-w-[68px] sm:min-w-[76px]"></div>
@@ -554,14 +555,30 @@
           <div class="px-4 pb-4 pt-3 border-t space-y-3 th-subcard" style="border-color: var(--border-main);">
             <div class="flex flex-wrap items-center justify-between gap-1.5">
               <div id="insp-filters" class="flex flex-wrap gap-1.5">
-                <button type="button" data-role="all" onclick="setInspFilter('all')" class="px-3 py-1.5 rounded-lg bg-amber-500 text-stone-950 text-xs font-bold">Todos</button>
-                <button type="button" data-role="Estribillo" onclick="setInspFilter('Estribillo')" class="px-3 py-1.5 rounded-lg th-input border text-xs font-bold">Estribillo</button>
-                <button type="button" data-role="Puente" onclick="setInspFilter('Puente')" class="px-3 py-1.5 rounded-lg th-input border text-xs font-bold">Puente</button>
-                <button type="button" data-role="Estrofa" onclick="setInspFilter('Estrofa')" class="px-3 py-1.5 rounded-lg th-input border text-xs font-bold">Estrofa</button>
+                <button type="button" data-role="all" onclick="setInspFilter('all')" class="px-2.5 py-1.5 rounded-lg bg-amber-500 text-stone-950 text-xs font-bold">Todos</button>
+                <button type="button" data-role="Estribillo" onclick="setInspFilter('Estribillo')" class="px-2.5 py-1.5 rounded-lg th-input border text-xs font-bold">Estribillo</button>
+                <button type="button" data-role="Puente" onclick="setInspFilter('Puente')" class="px-2.5 py-1.5 rounded-lg th-input border text-xs font-bold">Puente</button>
+                <button type="button" data-role="Estrofa" onclick="setInspFilter('Estrofa')" class="px-2.5 py-1.5 rounded-lg th-input border text-xs font-bold">Estrofa</button>
               </div>
-              <button type="button" onclick="regenerateInspirationBatch()" class="px-2.5 py-1.5 rounded-lg th-input border th-accent text-xs font-bold">↻ Mezclar</button>
+              <select id="insp-style-select" onchange="setInspStyleFilter(this.value)" class="th-input border rounded-lg px-2.5 py-1.5 text-xs font-bold max-w-full">
+                <option value="all">🎨 Todos los estilos</option>
+                <option value="Folk / Old-Time">🪕 Folk / Old-Time</option>
+                <option value="Celta / Modal">🍀 Celta / Modal</option>
+                <option value="Country / Bluegrass">🤠 Country / Bluegrass</option>
+                <option value="Gypsy / Taberna">🎻 Gypsy / Taberna</option>
+                <option value="Balada Oscura / Folk-Punk">🔥 Balada Oscura / Folk-Punk</option>
+                <option value="Ragtime / Swing">🎹 Ragtime / Swing</option>
+              </select>
             </div>
-            <div id="insp-list" class="space-y-2 max-h-72 overflow-y-auto"></div>
+            <div class="flex flex-wrap items-center justify-between gap-1.5 th-card border rounded-xl p-2">
+              <div class="flex items-center gap-1 min-w-0">
+                <button type="button" id="btn-insp-prev" onclick="stepInspBatch(-1)" title="Variación anterior" class="th-input border hover:border-amber-500 px-2 py-1 rounded-lg text-xs font-bold disabled:opacity-35">◀</button>
+                <select id="insp-history-select" onchange="selectInspBatch(this.value)" class="th-input border rounded-lg px-2 py-1 text-xs font-bold th-accent max-w-[165px]"></select>
+                <button type="button" id="btn-insp-next" onclick="stepInspBatch(1)" title="Variación siguiente" class="th-input border hover:border-amber-500 px-2 py-1 rounded-lg text-xs font-bold disabled:opacity-35">▶</button>
+              </div>
+              <button type="button" onclick="regenerateInspirationBatch()" class="bg-amber-500 hover:bg-amber-400 text-stone-950 px-2.5 py-1.5 rounded-lg text-xs font-extrabold shadow-sm">+ Nueva Variación</button>
+            </div>
+            <div id="insp-list" class="space-y-3 max-h-80 overflow-y-auto pr-0.5"></div>
           </div>
         </details>
 
@@ -1016,6 +1033,33 @@
       'Db': 'C#', 'Eb': 'D#', 'Fb': 'E', 'Gb': 'F#', 'Ab': 'G#', 'Bb': 'A#', 'Cb': 'B',
       'db': 'C#', 'eb': 'D#', 'gb': 'F#', 'ab': 'G#', 'bb': 'A#'
     };
+    const LATIN_NOTES = {
+      'C': 'Do', 'C#': 'Do#', 'D': 'Re', 'D#': 'Re#', 'E': 'Mi', 'F': 'Fa',
+      'F#': 'Fa#', 'G': 'Sol', 'G#': 'Sol#', 'A': 'La', 'A#': 'La#', 'B': 'Si'
+    };
+
+    function noteToLatin(noteName) {
+      const clean = FLAT_TO_SHARP[noteName] || noteName;
+      return LATIN_NOTES[clean] || noteName || '';
+    }
+
+    function chordToLatin(parsedOrDisplay) {
+      if (!parsedOrDisplay) return '';
+      if (typeof parsedOrDisplay === 'object') {
+        if (parsedOrDisplay.isSilence) return 'Silencio';
+        const latinRoot = noteToLatin(parsedOrDisplay.root);
+        const suf = parsedOrDisplay.suffix === 'maj' ? '' : (parsedOrDisplay.suffix || '');
+        return latinRoot + suf;
+      }
+      const str = String(parsedOrDisplay).trim();
+      if (!str || str === '--') return '';
+      if (/^(NC|N\.C\.|X|SILENCIO)$/i.test(str)) return 'Silencio';
+      const m = str.match(/^([A-Ga-g][#b]?)(.*)$/);
+      if (!m) return '';
+      let root = m[1][0].toUpperCase() + (m[1].slice(1) || '');
+      if (FLAT_TO_SHARP[root]) root = FLAT_TO_SHARP[root];
+      return noteToLatin(root) + (m[2] || '');
+    }
 
     const INSTRUMENTS = {
       banjolele: {
@@ -1259,7 +1303,10 @@
       dictType: 'all',
       detectorFrets: [0, 0, 0, 0],
       inspRoleFilter: 'all',
+      inspStyleFilter: 'all',
       inspSeed: 0,
+      inspHistory: [],
+      inspCurrentBatch: 0,
       playingInspIdx: -1,
       structMetronomeClick: false,
       projects: [],
@@ -2542,7 +2589,7 @@
       const sel = document.getElementById('base-quick-chord-select');
       if (!sel) return;
       const common = ['D', 'D5', 'Dm', 'D7', 'G', 'Gm', 'G7', 'A', 'Am', 'A7', 'C', 'Cmaj7', 'C7', 'E', 'Em', 'E7', 'F', 'Bm', 'B7'];
-      sel.innerHTML = `<option value="">+ Añadir acorde...</option>` + common.map(c => `<option value="${c}">${c}</option>`).join('');
+      sel.innerHTML = `<option value="">+ Añadir acorde...</option>` + common.map(c => `<option value="${c}">${c} (${chordToLatin(c)})</option>`).join('');
     }
 
     function getNextComplementaryDuration(currentChords, durationsMap) {
@@ -2705,8 +2752,8 @@
         const first = parseChordSymbol(chords[0]);
         if (first && !first.isSilence) {
           const dom = transposeNoteName(first.root, 7);
-          document.getElementById('key-badge').textContent = `🎯 Tónica: ${first.root} • Dominante: ${dom}`;
-          document.getElementById('scales-hint').innerHTML = `Escalas sugeridas: <strong>${first.root} Mayor / Mixolidio / Pentatónica</strong>`;
+          document.getElementById('key-badge').textContent = `🎯 Tónica: ${first.root} (${noteToLatin(first.root)}) • Dominante: ${dom} (${noteToLatin(dom)})`;
+          document.getElementById('scales-hint').innerHTML = `Escalas sugeridas: <strong>${first.root} (${noteToLatin(first.root)}) Mayor / Mixolidio / Pentatónica</strong>`;
         }
       }
 
@@ -2746,6 +2793,7 @@
             </div>
             <div class="text-center">
               <div class="font-serif-title text-base sm:text-lg font-extrabold th-accent leading-tight truncate">${parsed.display}</div>
+              <div class="text-[11px] italic th-muted leading-tight truncate">${chordToLatin(parsed)}</div>
               ${dur < 1 ? `<span class="inline-block text-[10px] font-mono-code font-bold px-1.5 rounded bg-amber-500/20 th-accent">${String(dur).replace('.', ',')} compás</span>` : ''}
             </div>
             <div class="py-0.5">${renderChordSvg(frets, true)}</div>
@@ -2832,6 +2880,34 @@
       showToast(`⧉ Duplicada: ${copy.name}`);
     }
 
+    function loadSectionToBase(secId) {
+      const sec = state.song.structure.find(s => s.id === secId);
+      if (!sec) return;
+      state.song.base.chordsText = sec.isBreak ? 'NC' : (sec.chordsText || '');
+      state.song.base.voicings = JSON.parse(JSON.stringify(sec.voicings || {}));
+      state.song.base.durations = JSON.parse(JSON.stringify(sec.durations || {}));
+      state.song.base.style = sec.style || state.song.base.style || 'folk';
+      state.song.base.timeSig = sec.timeSig || state.song.base.timeSig || '4/4';
+      state.song.base.bpm = Number(sec.bpm) || state.song.base.bpm || 112;
+
+      document.getElementById('base-chords-input').value = state.song.base.chordsText;
+      document.getElementById('base-style-select').value = state.song.base.style;
+      document.getElementById('base-timesig-select').value = state.song.base.timeSig;
+      document.getElementById('base-bpm-input').value = String(state.song.base.bpm);
+      const roleSel = document.getElementById('base-role-select');
+      if (roleSel && Array.from(roleSel.options).some(o => o.value === sec.role)) {
+        roleSel.value = sec.role;
+      }
+      document.getElementById('global-bpm-lbl').textContent = `${state.song.base.bpm} BPM`;
+      updateStyleDescBanner();
+      renderBaseChords();
+      renderMetronomeControls();
+      recordSongHistory();
+      saveLocalState();
+      document.getElementById('base-chords-input')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      showToast(`↑ "${sec.name}" cargada en la Rueda Base`);
+    }
+
     function getSectionColorStyle(sec, colorMap) {
       const key = `${(sec.role || '').trim().toLowerCase()}::${(sec.name || '').trim().toLowerCase()}`;
       if (!colorMap.has(key)) {
@@ -2866,7 +2942,8 @@
           const frets = voicings[vIdx] || [];
           return `
             <div id="struct-chord-${sIdx}-${cIdx}" class="struct-chord-card th-card border rounded-xl p-2 text-center min-w-[82px]">
-              <div class="font-serif-title text-sm font-extrabold th-accent">${parsed.display} ${dur < 1 ? `<span class="text-[10px]">(${dur})</span>` : ''}</div>
+              <div class="font-serif-title text-sm font-extrabold th-accent leading-tight">${parsed.display} ${dur < 1 ? `<span class="text-[10px]">(${dur})</span>` : ''}</div>
+              <div class="text-[10px] italic th-muted leading-tight mb-0.5">${chordToLatin(parsed)}</div>
               ${renderChordSvg(frets, false)}
             </div>
           `;
@@ -2889,6 +2966,7 @@
                   <button type="button" onclick="changeSectionRepeats('${sec.id}', 1)" class="px-1.5 py-0.5 rounded hover:bg-amber-500/15">+</button>
                 </div>
                 <button type="button" onclick="togglePlayAllStructure(${sIdx})" title="Reproducir desde aquí" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-2.5 py-1 rounded-lg">▶</button>
+                <button type="button" onclick="loadSectionToBase('${sec.id}')" title="Pasar esta sección a la Rueda Base" class="th-input border hover:border-amber-500 th-accent text-xs font-bold px-2 py-1 rounded-lg">↑ Rueda</button>
                 <button type="button" onclick="duplicateStructureSection(${sIdx})" title="Duplicar manteniendo nombre y color" class="th-input border hover:border-amber-500 text-xs font-bold px-2 py-1 rounded-lg">⧉</button>
                 <button type="button" onclick="moveStructureSection(${sIdx}, -1)" class="th-input border text-xs font-bold px-2 py-1 rounded-lg">↑</button>
                 <button type="button" onclick="moveStructureSection(${sIdx}, 1)" class="th-input border text-xs font-bold px-2 py-1 rounded-lg">↓</button>
@@ -3081,7 +3159,11 @@
         document.getElementById('atril-sec-lbl').textContent = `${item.sec.role.toUpperCase()} • ${item.sec.name} (Vuelta ${item.rep}/${item.reps})`;
         document.getElementById('atril-meta-lbl').textContent = item.sec.lyrics || `${ts} • ${bpm} BPM`;
         document.getElementById('atril-chord-big').textContent = parsed ? parsed.display : item.tok;
-        document.getElementById('atril-next-lbl').textContent = nextParsed ? nextParsed.display : 'FIN';
+        const latinBig = document.getElementById('atril-chord-latin');
+        if (latinBig) latinBig.textContent = parsed ? chordToLatin(parsed) : '';
+        document.getElementById('atril-next-lbl').innerHTML = nextParsed
+          ? `${nextParsed.display} <em class="font-normal th-muted">(${chordToLatin(nextParsed)})</em>`
+          : 'FIN';
         const diagBox = document.getElementById('atril-diagram-box');
         if (diagBox) {
           if (parsed && !parsed.isSilence) {
@@ -3386,52 +3468,240 @@
     // =========================================================================
     // 9. INSPIRACIÓN, BANCO Y PROYECTOS EN DRIVE
     // =========================================================================
+    const INSP_STYLES_META = {
+      'Folk / Old-Time': { icon: '🪕', label: 'Folk / Old-Time' },
+      'Celta / Modal': { icon: '🍀', label: 'Celta / Modal' },
+      'Country / Bluegrass': { icon: '🤠', label: 'Country / Bluegrass' },
+      'Gypsy / Taberna': { icon: '🎻', label: 'Gypsy / Taberna' },
+      'Balada Oscura / Folk-Punk': { icon: '🔥', label: 'Balada Oscura / Folk-Punk' },
+      'Ragtime / Swing': { icon: '🎹', label: 'Ragtime / Swing' }
+    };
+
+    const INSP_TEMPLATES_CATALOG = [
+      // Folk / Old-Time
+      { style: 'Folk / Old-Time', role: 'Estribillo', title: 'Himno Folk Directo (I - IV - V - I)', steps: [[0,''], [5,''], [7,''], [0,'']] },
+      { style: 'Folk / Old-Time', role: 'Estrofa', title: 'Rueda Old-Time (I - bVII - I - V)', steps: [[0,''], [10,''], [0,''], [7,'']] },
+      { style: 'Folk / Old-Time', role: 'Estrofa', title: 'Historia de Camino (I - vi - IV - V)', steps: [[0,''], [9,'m'], [5,''], [7,'']] },
+      { style: 'Folk / Old-Time', role: 'Puente', title: 'Giro Menor Relativo (vi - IV - I - V)', steps: [[9,'m'], [5,''], [0,''], [7,'']] },
+      { style: 'Folk / Old-Time', role: 'Estribillo', title: 'Coro Abierto (I - iii - IV - V)', steps: [[0,''], [4,'m'], [5,''], [7,'']] },
+      { style: 'Folk / Old-Time', role: 'Estrofa', title: 'Vals Nostálgico (I - IV - ii - V7)', steps: [[0,''], [5,''], [2,'m'], [7,'7']] },
+
+      // Celta / Modal
+      { style: 'Celta / Modal', role: 'Estribillo', title: 'Épica Celta (I - bVII - IV - I)', steps: [[0,''], [10,''], [5,''], [0,'']] },
+      { style: 'Celta / Modal', role: 'Puente', title: 'Puente Dórico (ii - IV - vi - V)', steps: [[2,'m'], [5,''], [9,'m'], [7,'']] },
+      { style: 'Celta / Modal', role: 'Estrofa', title: 'Trote Dórico (i - IV - i - bVII)', steps: [[0,'m'], [5,''], [0,'m'], [10,'']] },
+      { style: 'Celta / Modal', role: 'Estribillo', title: 'Mixolidio de Gaita (I - bVII - V - I)', steps: [[0,''], [10,''], [7,''], [0,'']] },
+      { style: 'Celta / Modal', role: 'Puente', title: 'Subida Irlandesa (bVII - IV - I - V)', steps: [[10,''], [5,''], [0,''], [7,'']] },
+      { style: 'Celta / Modal', role: 'Estrofa', title: 'Jig Modal (i - bVII - IV - i)', steps: [[0,'m'], [10,''], [5,''], [0,'m']] },
+
+      // Country / Bluegrass
+      { style: 'Country / Bluegrass', role: 'Estribillo', title: 'Subida Bluegrass (IV - I - V7 - I)', steps: [[5,''], [0,''], [7,'7'], [0,'']] },
+      { style: 'Country / Bluegrass', role: 'Estrofa', title: 'Galope Narrativo (I - I - IV - V)', steps: [[0,''], [0,''], [5,''], [7,'']] },
+      { style: 'Country / Bluegrass', role: 'Puente', title: 'Respiro Country (IV - iv - I - V7)', steps: [[5,''], [5,'m'], [0,''], [7,'7']] },
+      { style: 'Country / Bluegrass', role: 'Estribillo', title: 'Brindis Mayor (I - IV - I - V7)', steps: [[0,''], [5,''], [0,''], [7,'7']] },
+      { style: 'Country / Bluegrass', role: 'Estrofa', title: 'Tren del Oeste (I - IV - V - IV)', steps: [[0,''], [5,''], [7,''], [5,'']] },
+      { style: 'Country / Bluegrass', role: 'Puente', title: 'Cambio a Subdominante (I7 - IV - II7 - V7)', steps: [[0,'7'], [5,''], [2,'7'], [7,'7']] },
+
+      // Gypsy / Taberna
+      { style: 'Gypsy / Taberna', role: 'Estribillo', title: 'Clásico de Taberna (I - V - vi - IV)', steps: [[0,''], [7,''], [9,'m'], [5,'']] },
+      { style: 'Gypsy / Taberna', role: 'Puente', title: 'Tensión Taberna (ii - V - I - V7)', steps: [[2,'m'], [7,''], [0,''], [7,'7']] },
+      { style: 'Gypsy / Taberna', role: 'Puente', title: 'Giro Gypsy (vi - iv - I - V7)', steps: [[9,'m'], [5,'m'], [0,''], [7,'7']] },
+      { style: 'Gypsy / Taberna', role: 'Estrofa', title: 'Manouche Menor (i - iv - bVI - V7)', steps: [[0,'m'], [5,'m'], [8,''], [7,'7']] },
+      { style: 'Gypsy / Taberna', role: 'Estribillo', title: 'Balkan Swing (i - V7 - i - IV7)', steps: [[0,'m'], [7,'7'], [0,'m'], [5,'7']] },
+      { style: 'Gypsy / Taberna', role: 'Puente', title: 'Paso Disminuido (i - #idim7 - ii - V7)', steps: [[0,'m'], [1,'dim7'], [2,'m'], [7,'7']] },
+
+      // Balada Oscura / Folk-Punk
+      { style: 'Balada Oscura / Folk-Punk', role: 'Estrofa', title: 'Balada Oscura (i - bVII - bVI - V7)', steps: [[0,'m'], [10,''], [8,''], [7,'7']] },
+      { style: 'Balada Oscura / Folk-Punk', role: 'Estrofa', title: 'Murder Ballad (i - iv - i - V7)', steps: [[0,'m'], [5,'m'], [0,'m'], [7,'7']] },
+      { style: 'Balada Oscura / Folk-Punk', role: 'Estribillo', title: 'Marcha Folk-Punk (I - bVII - IV - V)', steps: [[0,''], [10,''], [5,''], [7,'']] },
+      { style: 'Balada Oscura / Folk-Punk', role: 'Puente', title: 'Descenso Dramático (vi - V - IV - V7)', steps: [[9,'m'], [7,''], [5,''], [7,'7']] },
+      { style: 'Balada Oscura / Folk-Punk', role: 'Puente', title: 'Caída Andaluza (vi - bVII - IV - V7)', steps: [[9,'m'], [10,''], [5,''], [7,'7']] },
+      { style: 'Balada Oscura / Folk-Punk', role: 'Estribillo', title: 'Himno Rebelde (i - bVI - bIII - bVII)', steps: [[0,'m'], [8,''], [3,''], [10,'']] },
+
+      // Ragtime / Swing
+      { style: 'Ragtime / Swing', role: 'Estribillo', title: 'Cierre Ragtime (I - VI7 - II7 - V7)', steps: [[0,''], [9,'7'], [2,'7'], [7,'7']] },
+      { style: 'Ragtime / Swing', role: 'Puente', title: 'Llamada al Solo (ii7 - V7 - iii7 - VI7)', steps: [[2,'m7'], [7,'7'], [4,'m7'], [9,'7']] },
+      { style: 'Ragtime / Swing', role: 'Estrofa', title: 'Blues Rural (I7 - IV7 - I7 - V7)', steps: [[0,'7'], [5,'7'], [0,'7'], [7,'7']] },
+      { style: 'Ragtime / Swing', role: 'Estribillo', title: 'Swing Clásico (I6 - vi7 - ii7 - V7)', steps: [[0,'6'], [9,'m7'], [2,'m7'], [7,'7']] },
+      { style: 'Ragtime / Swing', role: 'Estrofa', title: 'Jug Band (I - I7 - IV - IV#dim7)', steps: [[0,''], [0,'7'], [5,''], [6,'dim7']] },
+      { style: 'Ragtime / Swing', role: 'Puente', title: 'Turnaround Vintage (III7 - VI7 - II7 - V7)', steps: [[4,'7'], [9,'7'], [2,'7'], [7,'7']] }
+    ];
+
+    function buildInspirationVariation(varNum) {
+      const styleKeys = Object.keys(INSP_STYLES_META);
+      const items = [];
+      const altEndings = [
+        { tag: 'con 7ª', mutate: (steps) => steps.map((s, i) => (i === steps.length - 1 && !s[1] ? [s[0], '7'] : s)) },
+        { tag: 'con sus4', mutate: (steps) => steps.map((s, i) => (i === steps.length - 1 ? [s[0], 'sus4'] : s)) },
+        { tag: 'invertida', mutate: (steps) => [steps[0], steps[2], steps[1], steps[3]] },
+        { tag: 'con tensión V7', mutate: (steps) => [steps[0], steps[1], steps[2], [7, '7']] },
+        { tag: 'abierta', mutate: (steps) => steps.map((s, i) => (i === 0 && !s[1] ? [s[0], '5'] : s)) }
+      ];
+
+      styleKeys.forEach((styleKey, sIdx) => {
+        const pool = INSP_TEMPLATES_CATALOG.filter(t => t.style === styleKey);
+        if (!pool.length) return;
+        const pickCount = 2;
+        const offset = ((varNum - 1) * 2 + sIdx) % pool.length;
+        for (let k = 0; k < pickCount; k++) {
+          const base = pool[(offset + k) % pool.length];
+          let steps = base.steps.map(st => [...st]);
+          let title = base.title;
+          if (varNum > 3) {
+            const mut = altEndings[(varNum + sIdx + k) % altEndings.length];
+            steps = mut.mutate(steps);
+            title = `${base.title.split(' (')[0]} • Var. ${mut.tag}`;
+          }
+          items.push({
+            style: styleKey,
+            role: base.role,
+            title,
+            steps
+          });
+        }
+      });
+
+      return {
+        num: varNum,
+        createdAt: Date.now(),
+        items
+      };
+    }
+
+    function ensureInspirationHistory() {
+      if (!Array.isArray(state.inspHistory) || !state.inspHistory.length) {
+        state.inspHistory = [buildInspirationVariation(1)];
+        state.inspCurrentBatch = 0;
+      }
+      if (state.inspCurrentBatch < 0 || state.inspCurrentBatch >= state.inspHistory.length) {
+        state.inspCurrentBatch = state.inspHistory.length - 1;
+      }
+    }
+
     function setInspFilter(role) {
       state.inspRoleFilter = role;
       document.querySelectorAll('#insp-filters button').forEach(b => {
         const active = b.dataset.role === role;
         b.className = active
-          ? 'px-3 py-1.5 rounded-lg bg-amber-500 text-stone-950 text-xs font-bold'
-          : 'px-3 py-1.5 rounded-lg th-input border text-xs font-bold';
+          ? 'px-2.5 py-1.5 rounded-lg bg-amber-500 text-stone-950 text-xs font-bold'
+          : 'px-2.5 py-1.5 rounded-lg th-input border text-xs font-bold';
       });
       renderInspirationList();
     }
 
-    function regenerateInspirationBatch() {
-      state.inspSeed++;
+    function setInspStyleFilter(styleVal) {
+      state.inspStyleFilter = styleVal || 'all';
       renderInspirationList();
+    }
+
+    function selectInspBatch(idxStr) {
+      if (playbackMode === 'insp') stopAllPlayback();
+      const idx = parseInt(idxStr, 10);
+      if (!isNaN(idx) && idx >= 0 && idx < state.inspHistory.length) {
+        state.inspCurrentBatch = idx;
+        renderInspirationList();
+      }
+    }
+
+    function stepInspBatch(delta) {
+      ensureInspirationHistory();
+      const next = state.inspCurrentBatch + delta;
+      if (next < 0 || next >= state.inspHistory.length) return;
+      selectInspBatch(next);
+    }
+
+    function regenerateInspirationBatch() {
+      if (playbackMode === 'insp') stopAllPlayback();
+      ensureInspirationHistory();
+      state.inspSeed++;
+      const nextNum = state.inspHistory.length + 1;
+      state.inspHistory.push(buildInspirationVariation(nextNum));
+      state.inspCurrentBatch = state.inspHistory.length - 1;
+      renderInspirationList();
+      showToast(`💡 Variación #${nextNum} generada y guardada en el historial`);
     }
 
     function renderInspirationList() {
       const box = document.getElementById('insp-list');
       if (!box) return;
+      ensureInspirationHistory();
+
+      // Actualizar barra de historial de variaciones
+      const histSel = document.getElementById('insp-history-select');
+      const prevBtn = document.getElementById('btn-insp-prev');
+      const nextBtn = document.getElementById('btn-insp-next');
+      const styleSel = document.getElementById('insp-style-select');
+      if (styleSel) styleSel.value = state.inspStyleFilter || 'all';
+      if (histSel) {
+        histSel.innerHTML = state.inspHistory.map((b, i) =>
+          `<option value="${i}">Variación #${b.num} (${i + 1}/${state.inspHistory.length})</option>`
+        ).join('');
+        histSel.value = String(state.inspCurrentBatch);
+      }
+      if (prevBtn) prevBtn.disabled = state.inspCurrentBatch <= 0;
+      if (nextBtn) nextBtn.disabled = state.inspCurrentBatch >= state.inspHistory.length - 1;
+
+      const batch = state.inspHistory[state.inspCurrentBatch];
       const firstChord = parseChordSymbol(splitChordsText(state.song.base.chordsText)[0] || 'D');
       const r = firstChord && !firstChord.isSilence ? firstChord.root : 'D';
       const iv = st => transposeNoteName(r, st);
-      const templates = [
-        { role: 'Estribillo', title: 'Himno Folk Directo (I - IV - V - I)', chords: `${r} - ${iv(5)} - ${iv(7)} - ${r}` },
-        { role: 'Estribillo', title: 'Épica Celta (I - bVII - IV - I)', chords: `${r} - ${iv(10)} - ${iv(5)} - ${r}` },
-        { role: 'Puente', title: 'Giro Menor Relativo (vi - IV - I - V)', chords: `${iv(9)}m - ${iv(5)} - ${r} - ${iv(7)}` },
-        { role: 'Puente', title: 'Tensión Taberna (ii - V - I - V7)', chords: `${iv(2)}m - ${iv(7)} - ${r} - ${iv(7)}7` },
-        { role: 'Estrofa', title: 'Galope Narrativo (I - I - IV - V)', chords: `${r} - ${r} - ${iv(5)} - ${iv(7)}` },
-        { role: 'Estrofa', title: 'Balada Oscura (i - bVII - bVI - V7)', chords: `${r}m - ${iv(10)} - ${iv(8)} - ${iv(7)}7` }
-      ];
-      const filtered = state.inspRoleFilter === 'all' ? templates : templates.filter(t => t.role === state.inspRoleFilter);
-      box.innerHTML = filtered.map((t, idx) => {
-        const isPlaying = playbackMode === 'insp' && state.playingInspIdx === idx;
-        return `
-          <div class="th-card border rounded-xl p-2.5 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 text-xs">
-            <div class="min-w-0 flex-1">
-              <div class="break-words"><span class="font-bold th-accent">[${t.role}]</span> <strong>${t.title}</strong></div>
-              <div class="font-mono-code th-muted mt-0.5 truncate">${t.chords}</div>
+
+      const filtered = batch.items.filter(item => {
+        const okRole = state.inspRoleFilter === 'all' || item.role === state.inspRoleFilter;
+        const okStyle = state.inspStyleFilter === 'all' || item.style === state.inspStyleFilter;
+        return okRole && okStyle;
+      });
+
+      if (!filtered.length) {
+        box.innerHTML = `<div class="th-card border border-dashed rounded-xl p-4 text-center text-xs th-muted">No hay ruedas para ese filtro en la <strong>Variación #${batch.num}</strong>. Prueba otro estilo o pulsa <strong>+ Nueva Variación</strong>.</div>`;
+        return;
+      }
+
+      // Agrupar por estilo manteniendo el orden de estilos
+      const grouped = new Map();
+      filtered.forEach(item => {
+        if (!grouped.has(item.style)) grouped.set(item.style, []);
+        grouped.get(item.style).push(item);
+      });
+
+      let cardCounter = 0;
+      let html = '';
+      grouped.forEach((items, styleKey) => {
+        const meta = INSP_STYLES_META[styleKey] || { icon: '🎵', label: styleKey };
+        html += `<div class="space-y-1.5">
+          <div class="text-[11px] font-mono-code font-extrabold uppercase tracking-wider th-accent px-1 flex items-center justify-between">
+            <span>${meta.icon} ${meta.label}</span>
+            <span class="th-muted font-normal">Var. #${batch.num}</span>
+          </div>`;
+
+        items.forEach(t => {
+          cardCounter++;
+          const playIdx = state.inspCurrentBatch * 100 + cardCounter;
+          const isPlaying = playbackMode === 'insp' && state.playingInspIdx === playIdx;
+          const chordsStr = t.steps.map(([st, suf]) => iv(st) + suf).join(' - ');
+          const latinLine = t.steps.map(([st, suf]) => chordToLatin(iv(st) + suf)).join(' - ');
+
+          html += `
+            <div class="th-card border rounded-xl p-2.5 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 text-xs">
+              <div class="min-w-0 flex-1">
+                <div class="break-words">
+                  <span class="inline-block font-mono-code font-extrabold px-1.5 py-0.5 rounded bg-amber-500/15 th-accent mr-1">#${batch.num}.${cardCounter}</span>
+                  <span class="font-bold th-accent">[${t.role}]</span> <strong>${t.title}</strong>
+                </div>
+                <div class="font-mono-code th-muted mt-0.5 truncate">${chordsStr}</div>
+                <div class="text-[11px] italic th-muted truncate">${latinLine}</div>
+              </div>
+              <div class="flex items-center gap-1.5 shrink-0">
+                <button type="button" onclick="togglePlayInspiration(${playIdx}, '${chordsStr}')" class="px-2.5 py-1.5 rounded-lg font-bold ${isPlaying ? 'bg-rose-600 text-white' : 'bg-amber-500 text-stone-950'}">${isPlaying ? '■' : '▶'}</button>
+                <button type="button" onclick="applyProgressionToBase('${chordsStr}')" class="th-input border hover:border-amber-500 px-2.5 py-1.5 rounded-lg font-bold">Usar</button>
+              </div>
             </div>
-            <div class="flex items-center gap-1.5 shrink-0">
-              <button type="button" onclick="togglePlayInspiration(${idx}, '${t.chords}')" class="px-2.5 py-1.5 rounded-lg font-bold ${isPlaying ? 'bg-rose-600 text-white' : 'bg-amber-500 text-stone-950'}">${isPlaying ? '■' : '▶'}</button>
-              <button type="button" onclick="applyProgressionToBase('${t.chords}')" class="th-input border hover:border-amber-500 px-2.5 py-1.5 rounded-lg font-bold">Usar</button>
-            </div>
-          </div>
-        `;
-      }).join('');
+          `;
+        });
+        html += `</div>`;
+      });
+
+      box.innerHTML = html;
     }
 
     function applyProgressionToBase(chordsStr) {
@@ -3734,7 +4004,10 @@
                 <span class="truncate">${frets.join('-')}</span>
                 <span class="shrink-0">#${idx + 1}</span>
               </div>
-              <div class="font-serif-title text-base sm:text-lg font-extrabold th-accent truncate">${parsed.display}</div>
+              <div>
+                <div class="font-serif-title text-base sm:text-lg font-extrabold th-accent leading-tight truncate">${parsed.display}</div>
+                <div class="text-[11px] italic th-muted leading-tight truncate">${chordToLatin(parsed)}</div>
+              </div>
               ${renderChordSvg(frets, true)}
             </button>
           `);
@@ -3835,17 +4108,18 @@
       }
 
       state.detectedChordName = best;
+      const bestLatin = best !== '--' ? chordToLatin(best) : '';
       const badgesWrap = document.getElementById('detector-notes-badges');
       const infoWrap = document.getElementById('detector-chord-info');
       if (badgesWrap) {
-        badgesWrap.innerHTML = `<span class="px-3.5 py-2 rounded-full text-xs font-extrabold bg-amber-500 text-stone-950">${best}</span>` +
-          pcs.map(pc => `<span class="px-3 py-2 rounded-full text-xs font-extrabold th-subcard border th-accent">${NOTES_SHARP[pc]}</span>`).join('');
+        badgesWrap.innerHTML = `<span class="px-3.5 py-2 rounded-full text-xs font-extrabold bg-amber-500 text-stone-950">${best}${bestLatin ? ` <em class="font-semibold opacity-80">(${bestLatin})</em>` : ''}</span>` +
+          pcs.map(pc => `<span class="px-3 py-2 rounded-full text-xs font-extrabold th-subcard border th-accent">${NOTES_SHARP[pc]} <em class="font-normal opacity-75">(${noteToLatin(NOTES_SHARP[pc])})</em></span>`).join('');
       }
       if (infoWrap) {
         const fretsStr = state.detectorFrets.map(f => (f === -1 ? 'X' : f)).join(' - ');
         infoWrap.innerHTML = `
-          <div><strong class="th-accent">Acorde detectado: ${best}</strong> • Trastes: <span class="font-mono-code">${fretsStr}</span></div>
-          <div class="th-muted">Notas activas: ${pcs.length ? pcs.map(p => NOTES_SHARP[p]).join(' - ') : 'Todas las cuerdas mudas'}</div>
+          <div><strong class="th-accent">Acorde detectado: ${best}${bestLatin ? ` <em class="font-normal th-muted">(${bestLatin})</em>` : ''}</strong> • Trastes: <span class="font-mono-code">${fretsStr}</span></div>
+          <div class="th-muted">Notas activas: ${pcs.length ? pcs.map(p => `${NOTES_SHARP[p]} (${noteToLatin(NOTES_SHARP[p])})`).join(' - ') : 'Todas las cuerdas mudas'}</div>
         `;
       }
     }
@@ -4029,6 +4303,7 @@
           const frets = getChordVoicings(p)[0] || [];
           return `<span style="display:inline-flex;flex-direction:column;align-items:center;border:1px solid #bbb;border-radius:5px;padding:2px 6px;margin-right:4px;">
             <strong style="font-size:13px;">${p.display}</strong>
+            <span style="font-style:italic;font-size:9px;color:#555;">${chordToLatin(p)}</span>
             <span style="font-family:monospace;font-size:9px;color:#555;">${frets.join('-')}</span>
           </span>`;
         }).join('');
