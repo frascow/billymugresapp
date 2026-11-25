@@ -506,6 +506,7 @@
               <span id="struct-metro-dot" class="w-2 h-2 rounded-full bg-stone-500"></span>
               <span>⏱️ Clic: OFF</span>
             </button>
+            <button type="button" onclick="openVersionImporterModal('search')" class="th-input border border-amber-500/50 hover:border-amber-500 th-accent font-bold px-3.5 py-2.5 rounded-xl text-xs sm:text-sm">📥 Importar Versión</button>
             <button type="button" id="btn-play-all" onclick="togglePlayAllStructure(-1)" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-2.5 rounded-xl shadow-sm text-xs sm:text-sm">▶ Tocar Todo (Karaoke)</button>
           </div>
         </div>
@@ -641,6 +642,7 @@
               class="th-input border rounded-xl px-3 py-2 text-xs sm:text-sm w-full sm:w-auto"
             />
             <button type="button" onclick="syncProjectsFromCloud(true)" class="bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold px-3.5 py-2 rounded-xl text-xs sm:text-sm">↻ Sincronizar Drive</button>
+            <button type="button" onclick="openVersionImporterModal('search')" class="th-input border border-amber-500/50 hover:border-amber-500 th-accent font-bold px-3.5 py-2 rounded-xl text-xs sm:text-sm">📥 Importar Versión</button>
             <button type="button" onclick="createNewSong(); switchTab('componer');" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3.5 py-2 rounded-xl text-xs sm:text-sm">✨ Nueva Canción</button>
           </div>
         </div>
@@ -1054,6 +1056,109 @@
         <button type="button" onclick="closeChordVariationsModal()" class="th-input border px-2.5 py-1 rounded-lg text-xs font-bold shrink-0">✕</button>
       </div>
       <div id="cv-modal-list" class="space-y-2 overflow-y-auto flex-1 pr-0.5"></div>
+    </div>
+  </div>
+
+  <!-- MODAL 5: IMPORTADOR DE VERSIONES (BUSCADOR / LINK URL / TEXTO) -->
+  <div id="version-importer-modal" onclick="if (event.target === this) closeVersionImporterModal()" class="fixed inset-0 z-50 hidden bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+    <div class="th-card border rounded-2xl max-w-2xl w-full max-h-[90vh] flex flex-col p-4 sm:p-5 shadow-2xl space-y-3.5">
+      <div class="flex items-center justify-between gap-2 border-b pb-2.5" style="border-color: var(--border-main);">
+        <div class="min-w-0">
+          <h3 class="font-serif-title text-lg sm:text-xl font-bold truncate">📥 Importador de Versiones a Estructura</h3>
+          <p class="text-xs th-muted">Busca un tema directamente, pega el enlace de una web o importa texto de acordes</p>
+        </div>
+        <button type="button" onclick="closeVersionImporterModal()" class="th-input border px-2.5 py-1 rounded-lg text-xs font-bold shrink-0">✕</button>
+      </div>
+
+      <!-- Pestañas del importador -->
+      <div class="grid grid-cols-3 gap-1.5">
+        <button type="button" id="imp-tab-btn-search" onclick="switchImporterTab('search')" class="py-2 px-2 rounded-xl bg-amber-500 text-stone-950 text-xs font-extrabold">🔍 Buscar Tema</button>
+        <button type="button" id="imp-tab-btn-url" onclick="switchImporterTab('url')" class="py-2 px-2 rounded-xl th-input border text-xs font-bold">🔗 Desde Link</button>
+        <button type="button" id="imp-tab-btn-paste" onclick="switchImporterTab('paste')" class="py-2 px-2 rounded-xl th-input border text-xs font-bold">📋 Pegar Texto</button>
+      </div>
+
+      <!-- Panel 1: Buscador directo -->
+      <div id="imp-panel-search" class="space-y-2.5">
+        <form onsubmit="event.preventDefault(); runImporterSearch();" class="flex flex-col sm:flex-row gap-2">
+          <input
+            id="imp-search-query"
+            type="text"
+            placeholder="Ej: Wagon Wheel - Old Crow Medicine Show, Folsom Prison Blues..."
+            class="flex-1 th-input border rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold focus:outline-none focus:border-amber-500"
+          />
+          <button type="submit" id="btn-imp-search" class="bg-amber-500 hover:bg-amber-400 text-stone-950 font-extrabold px-4 py-2.5 rounded-xl text-xs sm:text-sm shrink-0">
+            🔍 Buscar y Extraer
+          </button>
+        </form>
+        <p class="text-[11px] th-muted">Busca la progresión de acordes, el compás, el BPM y las partes de la canción en la web para montar la estructura lista para tocar.</p>
+      </div>
+
+      <!-- Panel 2: Desde URL / Link -->
+      <div id="imp-panel-url" class="hidden space-y-2.5">
+        <form onsubmit="event.preventDefault(); runImporterUrl();" class="flex flex-col sm:flex-row gap-2">
+          <input
+            id="imp-url-input"
+            type="url"
+            placeholder="https://acordes.lacuerda.net/... o cifraclub / ultimate-guitar / chordie"
+            class="flex-1 th-input border rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-mono-code focus:outline-none focus:border-amber-500"
+          />
+          <button type="submit" id="btn-imp-url" class="bg-amber-500 hover:bg-amber-400 text-stone-950 font-extrabold px-4 py-2.5 rounded-xl text-xs sm:text-sm shrink-0">
+            🌐 Leer Link
+          </button>
+        </form>
+        <p class="text-[11px] th-muted">Compatible con enlaces de <strong>LaCuerda</strong>, <strong>CifraClub</strong>, <strong>Ultimate Guitar</strong>, <strong>Chordie</strong> y páginas de cifrados.</p>
+      </div>
+
+      <!-- Panel 3: Pegar texto o ChordPro -->
+      <div id="imp-panel-paste" class="hidden space-y-2">
+        <div class="flex flex-col sm:flex-row gap-2">
+          <input
+            id="imp-paste-title"
+            type="text"
+            placeholder="Título del tema (opcional)"
+            class="flex-1 th-input border rounded-xl px-3 py-2 text-xs font-semibold"
+          />
+          <button type="button" onclick="runImporterPaste()" class="bg-amber-500 hover:bg-amber-400 text-stone-950 font-extrabold px-4 py-2 rounded-xl text-xs shrink-0">
+            ⚡ Convertir a Estructura
+          </button>
+        </div>
+        <textarea
+          id="imp-paste-text"
+          rows="5"
+          placeholder="Pega aquí la canción copiada de LaCuerda, CifraClub, Ultimate Guitar o ChordPro...&#10;&#10;Ejemplo:&#10;[Estrofa]&#10;G          D          Em        C&#10;Heading down south to the land of the pines..."
+          class="w-full th-input border rounded-xl px-3 py-2 text-xs font-mono-code focus:outline-none focus:border-amber-500"
+        ></textarea>
+      </div>
+
+      <!-- Estado de carga / errores -->
+      <div id="imp-status-box" class="hidden th-subcard border rounded-xl px-3.5 py-2.5 text-xs flex items-center gap-2.5">
+        <span id="imp-status-spinner" class="w-4 h-4 rounded-full border-2 border-amber-500 border-t-transparent animate-spin shrink-0"></span>
+        <span id="imp-status-text" class="font-semibold th-accent">Analizando canción...</span>
+      </div>
+
+      <!-- Vista previa de estructura detectada -->
+      <div id="imp-preview-wrap" class="hidden flex-1 overflow-y-auto space-y-2.5 pr-0.5 border-t pt-3" style="border-color: var(--border-main);">
+        <div class="th-subcard border rounded-xl p-3 flex flex-wrap items-center justify-between gap-2 text-xs">
+          <div class="min-w-0 flex-1">
+            <div class="font-serif-title font-bold text-base th-accent truncate" id="imp-prev-title">--</div>
+            <div class="th-muted font-mono-code" id="imp-prev-meta">--</div>
+          </div>
+          <span class="px-2.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/35 text-emerald-400 font-bold text-[11px]" id="imp-prev-count">0 secciones</span>
+        </div>
+
+        <div id="imp-prev-sections" class="space-y-2"></div>
+        <div id="imp-prev-sources" class="hidden text-[11px] th-muted pt-1 border-t" style="border-color: var(--border-main);"></div>
+      </div>
+
+      <!-- Botones finales de importación -->
+      <div id="imp-actions-bar" class="hidden flex flex-wrap items-center justify-end gap-2 pt-2 border-t" style="border-color: var(--border-main);">
+        <button type="button" onclick="applyImportedVersion('append')" class="th-input border hover:border-amber-500 font-bold px-3.5 py-2 rounded-xl text-xs">
+          ➕ Añadir a Estructura Actual
+        </button>
+        <button type="button" onclick="applyImportedVersion('replace')" class="bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold px-4 py-2 rounded-xl text-xs shadow-sm">
+          ✅ Importar como Canción / Reemplazar Estructura
+        </button>
+      </div>
     </div>
   </div>
 
@@ -1813,6 +1918,9 @@
       const seventhPc = parsedChord.intervals.includes(10)
         ? (rootPc + 10) % 12
         : (parsedChord.intervals.includes(11) ? (rootPc + 11) % 12 : null);
+      const colorPcs = parsedChord.intervals
+        .filter(iv => iv === 2 || iv === 5 || iv === 6 || iv === 8 || iv === 9)
+        .map(iv => (rootPc + iv) % 12);
 
       const allowedFretsPerString = openMidis.map((om, sIdx) => {
         const list = [];
@@ -1844,6 +1952,9 @@
           score -= minF * 3.5;
           score -= (maxF - minF) * 4;
           score += pcsPresent.size * 12;
+          for (const cpc of colorPcs) {
+            if (pcsPresent.has(cpc)) score += 35;
+          }
           if ((openMidis[0] + current[0]) % 12 === rootPc) score += 8;
           results.push({ frets: [...current], score });
           return;
@@ -1929,6 +2040,7 @@
     // 5. MOTOR ACÚSTICO KARPLUS-STRONG + REPRODUCTOR RÍTMICO
     // =========================================================================
     let audioCtx = null;
+    let rhythmBus = null;
     function getAudioCtx() {
       if (!audioCtx) {
         const AC = window.AudioContext || window.webkitAudioContext;
@@ -1940,9 +2052,34 @@
       return audioCtx;
     }
 
-    function playPluckNote(midi, delaySec = 0, durationSec = 1.1, gainVal = 0.24) {
+    function getRhythmBus() {
+      const ctx = getAudioCtx();
+      if (!ctx) return null;
+      if (!rhythmBus) {
+        rhythmBus = ctx.createGain();
+        rhythmBus.gain.setValueAtTime(1, ctx.currentTime);
+        rhythmBus.connect(ctx.destination);
+      }
+      return rhythmBus;
+    }
+
+    function clearRhythmAudioBuffer() {
+      if (!rhythmBus) return;
+      try {
+        const ctx = getAudioCtx();
+        if (ctx) {
+          rhythmBus.gain.cancelScheduledValues(ctx.currentTime);
+          rhythmBus.gain.setValueAtTime(0, ctx.currentTime);
+        }
+        rhythmBus.disconnect();
+      } catch (e) {}
+      rhythmBus = null;
+    }
+
+    function playPluckNote(midi, delaySec = 0, durationSec = 1.1, gainVal = 0.24, destNode = null) {
       const ctx = getAudioCtx();
       if (!ctx) return;
+      const out = destNode || ctx.destination;
       const now = ctx.currentTime + Math.max(0, delaySec);
       const freq = midiToFreq(midi);
       const inst = state.inst;
@@ -1997,7 +2134,7 @@
 
         src.connect(bodyFilter);
         bodyFilter.connect(gainNode);
-        gainNode.connect(ctx.destination);
+        gainNode.connect(out);
         src.start(now);
       };
 
@@ -2008,10 +2145,10 @@
         renderString(0, 1);
       }
     }
-
-    function playPercussiveMute(delaySec = 0, gainVal = 0.24) {
+    function playPercussiveMute(delaySec = 0, gainVal = 0.24, destNode = null) {
       const ctx = getAudioCtx();
       if (!ctx) return;
+      const out = destNode || ctx.destination;
       const now = ctx.currentTime + Math.max(0, delaySec);
       const len = Math.floor(ctx.sampleRate * 0.06);
       const buf = ctx.createBuffer(1, len, ctx.sampleRate);
@@ -2030,11 +2167,11 @@
       g.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
       src.connect(bp);
       bp.connect(g);
-      g.connect(ctx.destination);
+      g.connect(out);
       src.start(now);
     }
 
-    function playChordStrum(frets, delaySec = 0, direction = 'down', durationSec = 0.95, gainVal = 0.22, trebleOnly = false) {
+    function playChordStrum(frets, delaySec = 0, direction = 'down', durationSec = 0.95, gainVal = 0.22, trebleOnly = false, destNode = null) {
       if (!frets || !frets.length) return;
       const openMidis = getOpenStringsMidi();
       let indices = frets.map((_, i) => i).filter(i => typeof frets[i] === 'number' && frets[i] >= 0);
@@ -2046,19 +2183,19 @@
       order.forEach((sIdx, step) => {
         const f = frets[sIdx];
         if (typeof f === 'number' && f >= 0) {
-          playPluckNote(openMidis[sIdx] + f, delaySec + step * stepGap, durationSec, gainVal);
+          playPluckNote(openMidis[sIdx] + f, delaySec + step * stepGap, durationSec, gainVal, destNode);
         }
       });
     }
 
-    function playBassRoot(parsedChord, delaySec = 0, useFifth = false, gainVal = 0.34) {
+    function playBassRoot(parsedChord, delaySec = 0, useFifth = false, gainVal = 0.34, destNode = null) {
       if (!parsedChord || parsedChord.isSilence) return;
       const oct = state.inst === 'bass' ? '2' : '3';
       const rootMidi = noteToMidi(parsedChord.root + oct);
       const targetMidi = useFifth ? rootMidi + 7 : rootMidi;
-      playPluckNote(targetMidi, delaySec, 0.62, gainVal);
+      playPluckNote(targetMidi, delaySec, 0.62, gainVal, destNode);
       if (state.inst === 'banjolele' || state.inst === 'ukulele' || state.inst === 'mandolin') {
-        playPluckNote(targetMidi + 12, delaySec + 0.005, 0.45, gainVal * 0.45);
+        playPluckNote(targetMidi + 12, delaySec + 0.005, 0.45, gainVal * 0.45, destNode);
       }
     }
 
@@ -2080,6 +2217,7 @@
 
     function playBarRhythm(parsedChord, voicingIdx, style, timeSig, bpm, fraction = 1) {
       if (!parsedChord || parsedChord.isSilence) return;
+      const bus = getRhythmBus();
       const voicings = getChordVoicings(parsedChord, 16);
       const frets = voicings[voicingIdx % voicings.length] || voicings[0];
       const openMidis = getOpenStringsMidi();
@@ -2090,8 +2228,8 @@
       if (style === 'waltz' || timeSig === '3/4') {
         for (let b = 0; b < activeBeats; b++) {
           const t = b * beatSec;
-          if (b % 3 === 0) playBassRoot(parsedChord, t, false, 0.36);
-          else playChordStrum(frets, t, b % 3 === 1 ? 'down' : 'up', beatSec * 0.72, 0.18, true);
+          if (b % 3 === 0) playBassRoot(parsedChord, t, false, 0.36, bus);
+          else playChordStrum(frets, t, b % 3 === 1 ? 'down' : 'up', beatSec * 0.72, 0.18, true, bus);
         }
         return;
       }
@@ -2102,9 +2240,9 @@
         for (let i = 0; i < eighths; i++) {
           const t = i * eighth;
           const pos = i % 3;
-          if (pos === 0) playChordStrum(frets, t, 'down', eighth * 1.15, 0.25, false);
-          else if (pos === 1) playChordStrum(frets, t, 'up', eighth * 0.85, 0.14, true);
-          else playChordStrum(frets, t, 'down', eighth * 0.9, 0.17, true);
+          if (pos === 0) playChordStrum(frets, t, 'down', eighth * 1.15, 0.25, false, bus);
+          else if (pos === 1) playChordStrum(frets, t, 'up', eighth * 0.85, 0.14, true, bus);
+          else playChordStrum(frets, t, 'down', eighth * 0.9, 0.17, true, bus);
         }
         return;
       }
@@ -2117,141 +2255,141 @@
 
         switch (style) {
           case 'folk':
-            if (isEvenBeat) playBassRoot(parsedChord, t, b === 2, 0.35);
-            else playChordStrum(frets, t, 'down', beatSec * 0.72, 0.22, false);
+            if (isEvenBeat) playBassRoot(parsedChord, t, b === 2, 0.35, bus);
+            else playChordStrum(frets, t, 'down', beatSec * 0.72, 0.22, false, bus);
             break;
 
           case 'bumditty':
             if (isEvenBeat) {
-              playBassRoot(parsedChord, t, b === 2, 0.34);
+              playBassRoot(parsedChord, t, b === 2, 0.34, bus);
             } else {
-              playChordStrum(frets, t, 'down', half * 0.95, 0.24, false);
+              playChordStrum(frets, t, 'down', half * 0.95, 0.24, false, bus);
               const droneMidi = openMidis[0] + (frets[0] || 0);
-              playPluckNote(droneMidi, t + half, half * 0.9, 0.22);
+              playPluckNote(droneMidi, t + half, half * 0.9, 0.22, bus);
             }
             break;
 
           case 'gallop':
-            playChordStrum(frets, t, 'down', half * 0.95, 0.26, false);
-            playChordStrum(frets, t + half, 'down', quarter * 0.95, 0.18, true);
-            playChordStrum(frets, t + half + quarter, 'up', quarter * 0.95, 0.20, true);
+            playChordStrum(frets, t, 'down', half * 0.95, 0.26, false, bus);
+            playChordStrum(frets, t + half, 'down', quarter * 0.95, 0.18, true, bus);
+            playChordStrum(frets, t + half + quarter, 'up', quarter * 0.95, 0.20, true, bus);
             break;
 
           case 'country':
             if (isEvenBeat) {
-              playBassRoot(parsedChord, t, b === 2, 0.35);
-              playChordStrum(frets, t + half, 'up', half * 0.85, 0.16, true);
+              playBassRoot(parsedChord, t, b === 2, 0.35, bus);
+              playChordStrum(frets, t + half, 'up', half * 0.85, 0.16, true, bus);
             } else {
-              playPercussiveMute(t, 0.25);
-              playChordStrum(frets, t + half, 'up', half * 0.85, 0.17, true);
+              playPercussiveMute(t, 0.25, bus);
+              playChordStrum(frets, t + half, 'up', half * 0.85, 0.17, true, bus);
             }
             break;
 
           case 'swing':
             if (isEvenBeat) {
-              playBassRoot(parsedChord, t, b === 2, 0.35);
+              playBassRoot(parsedChord, t, b === 2, 0.35, bus);
             } else {
-              playChordStrum(frets, t, 'down', beatSec * 0.62, 0.22, false);
-              playChordStrum(frets, t + beatSec * 0.66, 'up', beatSec * 0.32, 0.17, true);
+              playChordStrum(frets, t, 'down', beatSec * 0.62, 0.22, false, bus);
+              playChordStrum(frets, t + beatSec * 0.66, 'up', beatSec * 0.32, 0.17, true, bus);
             }
             break;
 
           case 'foxtrot':
-            if (b === 0) playBassRoot(parsedChord, t, false, 0.36);
-            if (b === 2) playChordStrum(frets, t, 'down', beatSec * 0.88, 0.23, false);
-            if (b === 3) playChordStrum(frets, t, 'up', beatSec * 0.88, 0.19, true);
+            if (b === 0) playBassRoot(parsedChord, t, false, 0.36, bus);
+            if (b === 2) playChordStrum(frets, t, 'down', beatSec * 0.88, 0.23, false, bus);
+            if (b === 3) playChordStrum(frets, t, 'up', beatSec * 0.88, 0.19, true, bus);
             break;
 
           case 'circus':
-            playBassRoot(parsedChord, t, !isEvenBeat, 0.38);
-            playChordStrum(frets, t + half, 'up', half * 0.62, 0.23, true);
+            playBassRoot(parsedChord, t, !isEvenBeat, 0.38, bus);
+            playChordStrum(frets, t + half, 'up', half * 0.62, 0.23, true, bus);
             break;
 
           case 'gypsy':
             if (isEvenBeat) {
-              playChordStrum(frets, t, 'down', beatSec * 0.32, 0.20, false);
+              playChordStrum(frets, t, 'down', beatSec * 0.32, 0.20, false, bus);
             } else {
-              playPercussiveMute(t, 0.28);
-              playChordStrum(frets, t, 'down', beatSec * 0.16, 0.16, true);
+              playPercussiveMute(t, 0.28, bus);
+              playChordStrum(frets, t, 'down', beatSec * 0.16, 0.16, true, bus);
             }
             break;
 
           case 'ragtime':
-            playBassRoot(parsedChord, t, !isEvenBeat, 0.35);
-            if (b === 3) playPercussiveMute(t + half, 0.24);
-            else playChordStrum(frets, t + half, 'up', half * 0.65, 0.19, true);
+            playBassRoot(parsedChord, t, !isEvenBeat, 0.35, bus);
+            if (b === 3) playPercussiveMute(t + half, 0.24, bus);
+            else playChordStrum(frets, t + half, 'up', half * 0.65, 0.19, true, bus);
             break;
 
           case 'polka':
-            playBassRoot(parsedChord, t, !isEvenBeat, 0.37);
-            playChordStrum(frets, t + half, 'up', half * 0.52, 0.21, true);
+            playBassRoot(parsedChord, t, !isEvenBeat, 0.37, bus);
+            playChordStrum(frets, t + half, 'up', half * 0.52, 0.21, true, bus);
             break;
 
           case 'offbeat':
-            playChordStrum(frets, t + half, 'up', half * 0.42, 0.25, true);
+            playChordStrum(frets, t + half, 'up', half * 0.42, 0.25, true, bus);
             break;
 
           case 'reggae':
             if (isEvenBeat) {
-              playBassRoot(parsedChord, t, false, 0.38);
+              playBassRoot(parsedChord, t, false, 0.38, bus);
             } else {
-              playChordStrum(frets, t + half, 'up', quarter * 0.85, 0.23, true);
-              playChordStrum(frets, t + half + quarter, 'up', quarter * 0.85, 0.19, true);
+              playChordStrum(frets, t + half, 'up', quarter * 0.85, 0.23, true, bus);
+              playChordStrum(frets, t + half + quarter, 'up', quarter * 0.85, 0.19, true, bus);
             }
             break;
 
           case 'punkfolk':
-            playBassRoot(parsedChord, t, !isEvenBeat, 0.36);
-            playChordStrum(frets, t + half, 'up', half * 0.9, 0.26, false);
+            playBassRoot(parsedChord, t, !isEvenBeat, 0.36, bus);
+            playChordStrum(frets, t + half, 'up', half * 0.9, 0.26, false, bus);
             break;
 
           case 'cumbia':
             if (isEvenBeat) {
-              playBassRoot(parsedChord, t, b === 2, 0.36);
-              playChordStrum(frets, t + half, 'up', half * 0.65, 0.19, true);
+              playBassRoot(parsedChord, t, b === 2, 0.36, bus);
+              playChordStrum(frets, t + half, 'up', half * 0.65, 0.19, true, bus);
             } else {
-              playChordStrum(frets, t, 'up', half * 0.65, 0.21, true);
+              playChordStrum(frets, t, 'up', half * 0.65, 0.21, true, bus);
             }
             break;
 
           case 'bluegrass':
-            if (isEvenBeat) playBassRoot(parsedChord, t, b === 2, 0.36);
-            else playPercussiveMute(t, 0.30);
+            if (isEvenBeat) playBassRoot(parsedChord, t, b === 2, 0.36, bus);
+            else playPercussiveMute(t, 0.30, bus);
             break;
 
           case 'strum':
             if (b === 0) {
-              playChordStrum(frets, t, 'down', beatSec * 0.92, 0.24, false);
+              playChordStrum(frets, t, 'down', beatSec * 0.92, 0.24, false, bus);
             } else if (b === 1) {
-              playChordStrum(frets, t, 'down', half * 0.9, 0.21, false);
-              playChordStrum(frets, t + half, 'up', half * 0.9, 0.17, true);
+              playChordStrum(frets, t, 'down', half * 0.9, 0.21, false, bus);
+              playChordStrum(frets, t + half, 'up', half * 0.9, 0.17, true, bus);
             } else if (b === 2) {
-              playChordStrum(frets, t + half, 'up', half * 0.9, 0.18, true);
+              playChordStrum(frets, t + half, 'up', half * 0.9, 0.18, true, bus);
             } else {
-              playChordStrum(frets, t, 'down', half * 0.9, 0.22, false);
-              playChordStrum(frets, t + half, 'up', half * 0.9, 0.18, true);
+              playChordStrum(frets, t, 'down', half * 0.9, 0.22, false, bus);
+              playChordStrum(frets, t + half, 'up', half * 0.9, 0.18, true, bus);
             }
             break;
 
           case 'arpeggio': {
             const s1 = (b * 2) % frets.length;
             const s2 = (b * 2 + 1) % frets.length;
-            playPluckNote(openMidis[s1] + (frets[s1] || 0), t, beatSec * 0.95, 0.23);
-            playPluckNote(openMidis[s2] + (frets[s2] || 0), t + half, beatSec * 0.95, 0.21);
+            playPluckNote(openMidis[s1] + (frets[s1] || 0), t, beatSec * 0.95, 0.23, bus);
+            playPluckNote(openMidis[s2] + (frets[s2] || 0), t + half, beatSec * 0.95, 0.21, bus);
             break;
           }
 
           case 'quarterMute':
-            playPercussiveMute(t, 0.28);
+            playPercussiveMute(t, 0.28, bus);
             break;
 
           case 'quarterPower':
-            playChordStrum(frets, t, 'down', beatSec * 0.85, 0.27, false);
+            playChordStrum(frets, t, 'down', beatSec * 0.85, 0.27, false, bus);
             break;
 
           default:
-            if (isEvenBeat) playBassRoot(parsedChord, t, b === 2, 0.35);
-            else playChordStrum(frets, t, 'down', beatSec * 0.72, 0.22, false);
+            if (isEvenBeat) playBassRoot(parsedChord, t, b === 2, 0.35, bus);
+            else playChordStrum(frets, t, 'down', beatSec * 0.72, 0.22, false, bus);
             break;
         }
       }
@@ -3189,6 +3327,7 @@
         clearTimeout(playbackHandle);
         playbackHandle = null;
       }
+      clearRhythmAudioBuffer();
       playbackMode = null;
       state.playingInspIdx = -1;
       document.querySelectorAll('.active-play').forEach(el => el.classList.remove('active-play'));
@@ -3206,8 +3345,8 @@
         return;
       }
       stopAllPlayback();
-      const chords = splitChordsText(state.song.base.chordsText);
-      if (!chords.length) return;
+      const initialChords = splitChordsText(state.song.base.chordsText);
+      if (!initialChords.length) return;
       playbackMode = 'base';
       document.getElementById('btn-play-base').textContent = '■ Detener Rueda';
 
@@ -3216,6 +3355,13 @@
 
       const step = () => {
         if (playbackMode !== 'base') return;
+        const chords = splitChordsText(state.song.base.chordsText);
+        if (!chords.length) {
+          stopAllPlayback();
+          return;
+        }
+        if (idx >= chords.length) idx = 0;
+
         document.querySelectorAll('.active-play').forEach(el => el.classList.remove('active-play'));
         document.getElementById(`base-card-${idx}`)?.classList.add('active-play');
 
@@ -4428,6 +4574,559 @@
         stopScalePlayback();
       }, seqMidis.length * stepMs + 220);
       scalePlayTimers.push(endTimer);
+    }
+
+    // =========================================================================
+    // 10B. IMPORTADOR DE VERSIONES (BUSCADOR WEB, LINK URL Y PARSER LOCAL)
+    // =========================================================================
+    let importerDraft = null;
+
+    function openVersionImporterModal(defaultTab = 'search') {
+      const modal = document.getElementById('version-importer-modal');
+      if (!modal) return;
+      modal.classList.remove('hidden');
+      switchImporterTab(defaultTab);
+      if (defaultTab === 'search') {
+        setTimeout(() => document.getElementById('imp-search-query')?.focus(), 50);
+      } else if (defaultTab === 'url') {
+        setTimeout(() => document.getElementById('imp-url-input')?.focus(), 50);
+      }
+    }
+
+    function closeVersionImporterModal() {
+      document.getElementById('version-importer-modal')?.classList.add('hidden');
+    }
+
+    function switchImporterTab(tab) {
+      ['search', 'url', 'paste'].forEach(t => {
+        const panel = document.getElementById(`imp-panel-${t}`);
+        const btn = document.getElementById(`imp-tab-btn-${t}`);
+        if (panel) panel.classList.toggle('hidden', t !== tab);
+        if (btn) {
+          btn.className = t === tab
+            ? 'py-2 px-2 rounded-xl bg-amber-500 text-stone-950 text-xs font-extrabold'
+            : 'py-2 px-2 rounded-xl th-input border text-xs font-bold';
+        }
+      });
+    }
+
+    function setImporterStatus(visible, text = '', loading = false, isError = false) {
+      const box = document.getElementById('imp-status-box');
+      const spin = document.getElementById('imp-status-spinner');
+      const lbl = document.getElementById('imp-status-text');
+      if (!box) return;
+      box.classList.toggle('hidden', !visible);
+      if (spin) spin.classList.toggle('hidden', !loading);
+      if (lbl) {
+        lbl.textContent = text;
+        lbl.className = isError ? 'font-semibold text-rose-400' : 'font-semibold th-accent';
+      }
+    }
+
+    // Normaliza cifrado americano o latino (Do, Re, Lam, Sol7, Sib...) a formato de la app
+    function normalizeImportedChordToken(raw) {
+      const tok = String(raw || '').trim().replace(/^[\(\[\{]+|[\)\]\}\.,;:!]+$/g, '');
+      if (!tok) return null;
+      if (/^(NC|N\.C\.)$/i.test(tok)) return 'NC';
+
+      // Notación latina: Do, Re, Mi, Fa, Sol, La, Si
+      const latinMap = {
+        'do': 'C', 're': 'D', 'mi': 'E', 'fa': 'F', 'sol': 'G', 'la': 'A', 'si': 'B'
+      };
+      const mLat = tok.match(/^(Do|Re|Mi|Fa|Sol|La|Si)([#b]?)(m|min|maj7|m7|dim7|dim|aug|sus4|sus2|add9|7sus4|m6|6|7|9|13|5|m9|m7b5)?(\/[A-Za-z#b]+)?$/i);
+      if (mLat) {
+        let root = latinMap[mLat[1].toLowerCase()] + (mLat[2] || '');
+        if (FLAT_TO_SHARP[root]) root = FLAT_TO_SHARP[root];
+        let suf = (mLat[3] || '').toLowerCase();
+        if (suf === 'min') suf = 'm';
+        return root + suf;
+      }
+
+      // Notación americana: C, Dm, F#m7, Bbmaj7, G/B...
+      const mAng = tok.match(/^([A-G])([#b]?)(m|min|maj7|maj9|maj|M|m7b5|m7|m6|m9|m\(maj7\)|dim7|dim|aug7|aug|7sus4|sus4|sus2|add9|13|9|7|6|5)?(\/[A-G][#b]?)?$/);
+      if (!mAng) return null;
+      let root = mAng[1] + (mAng[2] || '');
+      if (FLAT_TO_SHARP[root]) root = FLAT_TO_SHARP[root];
+      let suf = mAng[3] || '';
+      if (suf === 'min') suf = 'm';
+      if (suf === 'M' || suf === 'maj') suf = '';
+      return root + suf;
+    }
+
+    function mapSectionRole(rawLabel) {
+      const s = String(rawLabel || '').toLowerCase();
+      if (/intro|entrada|inicio/.test(s)) return 'Intro';
+      if (/estribillo|chorus|coro|refran|refrán/.test(s)) return 'Estribillo';
+      if (/puente|bridge|pre-?coro|pre-?chorus|interludio/.test(s)) return 'Puente';
+      if (/solo|instrumental|break/.test(s)) return 'Solo';
+      if (/outro|final|coda|ending/.test(s)) return 'Outro';
+      if (/corte|silencio|stop/.test(s)) return 'Corte';
+      return 'Estrofa';
+    }
+
+    function isChordOnlyLine(line) {
+      const cleaned = line.replace(/[|\-\/]+/g, ' ').trim();
+      if (!cleaned) return false;
+      const parts = cleaned.split(/\s+/).filter(Boolean);
+      if (!parts.length) return false;
+      let valid = 0;
+      for (const p of parts) {
+        if (/^(x\d+|\(\d+\)|%|\*)$/i.test(p)) continue;
+        if (normalizeImportedChordToken(p)) valid++;
+      }
+      const meaningful = parts.filter(p => !/^(x\d+|\(\d+\)|%|\*)$/i.test(p)).length;
+      return meaningful > 0 && valid >= 1 && (valid / meaningful) >= 0.65;
+    }
+
+    // Parser local universal para ChordPro, LaCuerda, CifraClub y Ultimate Guitar
+    function parseRawChordSheetToStructure(rawText, fallbackTitle = '') {
+      const lines = String(rawText || '').replace(/\r\n/g, '\n').split('\n');
+      let title = fallbackTitle.trim() || 'Versión Importada';
+      const sections = [];
+      let current = null;
+
+      const ensureSection = (role = 'Estrofa', name = 'Estrofa 1') => {
+        if (!current) {
+          current = { role, name, chords: [], lyrics: [], repeats: 1 };
+          sections.push(current);
+        }
+      };
+
+      for (const rawLine of lines) {
+        const line = rawLine.trim();
+        if (!line) continue;
+
+        // Directivas ChordPro {title: ...}
+        const mTitle = line.match(/^\{(?:t|title)\s*:\s*(.+?)\}$/i);
+        if (mTitle) {
+          title = mTitle[1].trim();
+          continue;
+        }
+        if (/^\{(?:artist|subtitle|st|key|capo|tempo)\s*:/i.test(line)) continue;
+
+        // Cabecera de sección: [Verse 1], [Estribillo], Estrofa 1:, CORO:
+        const mBracket = line.match(/^\[([A-Za-zÁÉÍÓÚÑáéíóúñ0-9\s\-\/]+)\]\s*(x\d+)?$/);
+        const mColon = !mBracket && line.match(/^(Intro|Verso|Verse|Estrofa|Estribillo|Chorus|Coro|Pre-?Coro|Pre-?Chorus|Puente|Bridge|Solo|Instrumental|Outro|Final)(?:\s+\d+)?\s*:\s*(.*)$/i);
+
+        if (mBracket && !normalizeImportedChordToken(mBracket[1])) {
+          const label = mBracket[1].trim();
+          const role = mapSectionRole(label);
+          const repMatch = mBracket[2] ? parseInt(mBracket[2].slice(1), 10) : 1;
+          current = { role, name: label, chords: [], lyrics: [], repeats: repMatch || 1 };
+          sections.push(current);
+          continue;
+        }
+        if (mColon) {
+          const label = mColon[1].trim();
+          const role = mapSectionRole(label);
+          current = { role, name: label, chords: [], lyrics: [], repeats: 1 };
+          sections.push(current);
+          const rest = (mColon[2] || '').trim();
+          if (rest && isChordOnlyLine(rest)) {
+            rest.split(/[\s|\-]+/).forEach(tok => {
+              const norm = normalizeImportedChordToken(tok);
+              if (norm) current.chords.push(norm);
+            });
+          } else if (rest) {
+            current.lyrics.push(rest);
+          }
+          continue;
+        }
+
+        // Formato ChordPro inline: [G]Letra [D]más letra
+        if (/\[[A-Za-z][^\]]{0,10}\]/.test(line)) {
+          ensureSection('Estrofa', `Estrofa ${sections.length + 1}`);
+          const inlineChords = [];
+          const lyricClean = line.replace(/\[([^\]]+)\]/g, (_, ch) => {
+            const norm = normalizeImportedChordToken(ch);
+            if (norm) inlineChords.push(norm);
+            return '';
+          }).replace(/\s{2,}/g, ' ').trim();
+          if (inlineChords.length) current.chords.push(...inlineChords);
+          if (lyricClean) current.lyrics.push(lyricClean);
+          continue;
+        }
+
+        // Línea solo de acordes
+        if (isChordOnlyLine(line)) {
+          ensureSection('Estrofa', `Estrofa ${sections.length + 1}`);
+          const repM = line.match(/x(\d+)/i);
+          if (repM && current.chords.length === 0) current.repeats = Math.max(1, parseInt(repM[1], 10));
+          line.replace(/[|\-]+/g, ' ').split(/\s+/).forEach(tok => {
+            const norm = normalizeImportedChordToken(tok);
+            if (norm) current.chords.push(norm);
+          });
+          continue;
+        }
+
+        // Línea de letra
+        ensureSection('Estrofa', `Estrofa ${sections.length + 1}`);
+        current.lyrics.push(line);
+      }
+
+      const validSections = sections
+        .filter(s => s.chords.length > 0)
+        .map((s, idx) => {
+          // Si la sección tiene exactamente el mismo patrón repetido 2 veces seguidas, compactarlo con repeats
+          let chords = s.chords;
+          let repeats = s.repeats || 1;
+          if (chords.length >= 4 && chords.length % 2 === 0) {
+            const half = chords.length / 2;
+            const firstHalf = chords.slice(0, half).join(' ');
+            const secondHalf = chords.slice(half).join(' ');
+            if (firstHalf === secondHalf) {
+              chords = chords.slice(0, half);
+              repeats = repeats * 2;
+            }
+          }
+          return {
+            role: s.role || 'Estrofa',
+            name: s.name || `${s.role || 'Estrofa'} ${idx + 1}`,
+            chordsText: chords.slice(0, 16).join(' - '),
+            repeats: Math.min(16, Math.max(1, repeats)),
+            style: state.song.base.style || 'folk',
+            timeSig: state.song.base.timeSig || '4/4',
+            bpm: Number(state.song.base.bpm) || 112,
+            lyrics: s.lyrics.slice(0, 4).join(' / ')
+          };
+        });
+
+      return {
+        title,
+        bpm: Number(state.song.base.bpm) || 112,
+        timeSig: state.song.base.timeSig || '4/4',
+        style: state.song.base.style || 'folk',
+        sections: validSections,
+        sources: []
+      };
+    }
+
+    // Llamada a Gemini API con Google Search Grounding y backoff exponencial
+    async function callGeminiWithBackoff(payload, maxRetries = 4) {
+      const apiKey = "";
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+      let delay = 1000;
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+          const res = await fetch(apiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          if (res.ok) {
+            return await res.json();
+          }
+          if ((res.status === 429 || res.status >= 500) && attempt < maxRetries) {
+            await new Promise(r => setTimeout(r, delay));
+            delay *= 2;
+            continue;
+          }
+          throw new Error(`HTTP ${res.status}`);
+        } catch (err) {
+          if (attempt < maxRetries) {
+            await new Promise(r => setTimeout(r, delay));
+            delay *= 2;
+            continue;
+          }
+          throw err;
+        }
+      }
+      throw new Error('No se pudo conectar con el servicio de búsqueda');
+    }
+
+    function extractJsonFromModelText(text) {
+      const cleaned = String(text || '').trim();
+      const fenced = cleaned.match(/```(?:json)?\s*([\s\S]*?)```/i);
+      const candidate = fenced ? fenced[1].trim() : cleaned;
+      const start = candidate.indexOf('{');
+      const end = candidate.lastIndexOf('}');
+      if (start === -1 || end === -1 || end <= start) {
+        throw new Error('La respuesta no contenía una estructura JSON válida');
+      }
+      return JSON.parse(candidate.slice(start, end + 1));
+    }
+
+    function sanitizeImportedDraft(rawObj, sources = []) {
+      const allowedStyles = Object.keys(STYLE_PATTERNS_INFO);
+      const allowedTs = ['4/4', '3/4', '6/8', '2/4'];
+      const bpm = Math.max(40, Math.min(260, parseInt(rawObj.bpm, 10) || 112));
+      const timeSig = allowedTs.includes(rawObj.timeSig) ? rawObj.timeSig : '4/4';
+      const style = allowedStyles.includes(rawObj.style) ? rawObj.style : 'folk';
+      const title = String(rawObj.title || 'Versión Importada').trim();
+
+      const rawSecs = Array.isArray(rawObj.sections) ? rawObj.sections : [];
+      const sections = rawSecs.map((s, idx) => {
+        const tokens = splitChordsText(s.chordsText || s.chords || '')
+          .map(t => normalizeImportedChordToken(t))
+          .filter(Boolean);
+        const role = mapSectionRole(s.role || s.name || 'Estrofa');
+        return {
+          role,
+          name: String(s.name || `${role} ${idx + 1}`).trim(),
+          chordsText: tokens.length ? tokens.join(' - ') : 'NC',
+          repeats: Math.max(1, Math.min(16, parseInt(s.repeats, 10) || 1)),
+          style: allowedStyles.includes(s.style) ? s.style : style,
+          timeSig: allowedTs.includes(s.timeSig) ? s.timeSig : timeSig,
+          bpm: Math.max(40, Math.min(260, parseInt(s.bpm, 10) || bpm)),
+          lyrics: String(s.lyrics || '').trim().slice(0, 220),
+          selected: true
+        };
+      }).filter(s => s.chordsText && s.chordsText !== 'NC');
+
+      return { title, bpm, timeSig, style, sections, sources };
+    }
+
+    function extractGroundingSources(result) {
+      const meta = result?.candidates?.[0]?.groundingMetadata;
+      const list = [];
+      if (meta?.groundingAttributions) {
+        meta.groundingAttributions.forEach(a => {
+          if (a.web?.uri && a.web?.title) list.push({ uri: a.web.uri, title: a.web.title });
+        });
+      }
+      if (meta?.groundingChunks) {
+        meta.groundingChunks.forEach(c => {
+          if (c.web?.uri && c.web?.title) list.push({ uri: c.web.uri, title: c.web.title });
+        });
+      }
+      const unique = [];
+      const seen = new Set();
+      for (const s of list) {
+        if (!seen.has(s.uri)) {
+          seen.add(s.uri);
+          unique.push(s);
+        }
+      }
+      return unique.slice(0, 5);
+    }
+
+    async function fetchSongStructureViaSearch(userPromptText) {
+      const systemPrompt = [
+        'Eres un transcriptor musical experto en acordes y estructuras de canciones para banda folk/rock acústico.',
+        'Usa la búsqueda web para encontrar los acordes reales, el tempo aproximado (BPM), el compás y la estructura completa de la canción solicitada.',
+        'Responde EXCLUSIVAMENTE con un objeto JSON válido (sin texto adicional ni explicaciones) con esta estructura exacta:',
+        '{',
+        '  "title": "Título - Artista",',
+        '  "bpm": 120,',
+        '  "timeSig": "4/4",',
+        '  "style": "folk",',
+        '  "sections": [',
+        '    {',
+        '      "role": "Intro | Estrofa | Estribillo | Puente | Solo | Outro",',
+        '      "name": "Nombre corto de la parte (ej: Intro, Estrofa 1, Estribillo)",',
+        '      "chordsText": "G - D - Em - C",',
+        '      "repeats": 2,',
+        '      "lyrics": "Breve referencia de los primeros versos o nota instrumental (máximo 120 caracteres)"',
+        '    }',
+        '  ]',
+        '}',
+        'REGLAS IMPORTANTES:',
+        '- Usa SIEMPRE cifrado americano estándar (C, D, Em, F#m, A7, Gmaj7, Bb -> A# o Bb).',
+        '- Separa los acordes en chordsText con " - ".',
+        '- El campo style debe ser uno de: folk, bumditty, gallop, country, swing, gypsy, ragtime, polka, offbeat, reggae, punkfolk, bluegrass, strum, arpeggio, waltz, jig.',
+        '- El campo timeSig debe ser uno de: 4/4, 3/4, 6/8, 2/4.',
+        '- Incluye todas las partes principales de la canción en orden musical real.'
+      ].join('\n');
+
+      const payload = {
+        contents: [{ parts: [{ text: userPromptText }] }],
+        tools: [{ google_search: {} }],
+        systemInstruction: { parts: [{ text: systemPrompt }] }
+      };
+
+      const result = await callGeminiWithBackoff(payload);
+      const text = result?.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('\n') || '';
+      const parsed = extractJsonFromModelText(text);
+      const sources = extractGroundingSources(result);
+      return sanitizeImportedDraft(parsed, sources);
+    }
+
+    async function runImporterSearch() {
+      const q = (document.getElementById('imp-search-query')?.value || '').trim();
+      if (!q) {
+        showToast('Escribe el nombre de una canción o artista');
+        return;
+      }
+      const btn = document.getElementById('btn-imp-search');
+      if (btn) btn.disabled = true;
+      setImporterStatus(true, `Buscando acordes y estructura de "${q}"...`, true, false);
+      document.getElementById('imp-preview-wrap')?.classList.add('hidden');
+      document.getElementById('imp-actions-bar')?.classList.add('hidden');
+
+      try {
+        const draft = await fetchSongStructureViaSearch(
+          `Busca los acordes reales, compás, BPM y estructura completa (Intro, Estrofa, Estribillo, Puente, Outro) de la canción: "${q}".`
+        );
+        if (!draft.sections.length) {
+          throw new Error('No se encontraron acordes claros para ese tema');
+        }
+        importerDraft = draft;
+        setImporterStatus(false);
+        renderImporterPreview();
+      } catch (e) {
+        setImporterStatus(true, `No se pudo extraer automáticamente (${e.message || 'error de red'}). Puedes probar con otro nombre o pegar los acordes en "📋 Pegar Texto".`, false, true);
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    }
+
+    async function runImporterUrl() {
+      const url = (document.getElementById('imp-url-input')?.value || '').trim();
+      if (!url || !/^https?:\/\//i.test(url)) {
+        showToast('Introduce un enlace válido que empiece por http:// o https://');
+        return;
+      }
+      const btn = document.getElementById('btn-imp-url');
+      if (btn) btn.disabled = true;
+      setImporterStatus(true, 'Leyendo enlace y extrayendo acordes y estructura...', true, false);
+      document.getElementById('imp-preview-wrap')?.classList.add('hidden');
+      document.getElementById('imp-actions-bar')?.classList.add('hidden');
+
+      try {
+        // Extraer pistas legibles del propio slug de la URL por si la web bloquea bots
+        const slugHint = decodeURIComponent(url)
+          .replace(/^https?:\/\/[^/]+/i, '')
+          .replace(/[\/_\-\.]+/g, ' ')
+          .replace(/\b(chords|acordes|tabs|tab|shtml|html|php|com|net|org|www)\b/gi, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+
+        const draft = await fetchSongStructureViaSearch(
+          `Analiza la canción correspondiente a esta página de acordes: ${url} (referencia de ruta: "${slugHint}"). Extrae su título exacto, BPM, compás y estructura completa con sus acordes reales.`
+        );
+        if (!draft.sections.length) {
+          throw new Error('No se pudieron leer secciones desde ese enlace');
+        }
+        importerDraft = draft;
+        setImporterStatus(false);
+        renderImporterPreview();
+      } catch (e) {
+        setImporterStatus(true, `No se pudo leer ese enlace (${e.message || 'acceso restringido'}). Si la web tiene protección, copia los acordes y pégalos en "📋 Pegar Texto".`, false, true);
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    }
+
+    function runImporterPaste() {
+      const raw = document.getElementById('imp-paste-text')?.value || '';
+      const customTitle = document.getElementById('imp-paste-title')?.value || '';
+      if (!raw.trim()) {
+        showToast('Pega primero el texto con acordes');
+        return;
+      }
+      const draft = parseRawChordSheetToStructure(raw, customTitle);
+      draft.sections.forEach(s => { s.selected = true; });
+      if (!draft.sections.length) {
+        setImporterStatus(true, 'No se detectaron acordes reconocibles en el texto pegado. Asegúrate de incluir cifrado como G, D, Em, C o Sol, Re, Mim, Do.', false, true);
+        return;
+      }
+      importerDraft = draft;
+      setImporterStatus(false);
+      renderImporterPreview();
+    }
+
+    function toggleImporterSectionCheck(idx, checked) {
+      if (!importerDraft || !importerDraft.sections[idx]) return;
+      importerDraft.sections[idx].selected = !!checked;
+    }
+
+    function renderImporterPreview() {
+      if (!importerDraft) return;
+      const wrap = document.getElementById('imp-preview-wrap');
+      const actions = document.getElementById('imp-actions-bar');
+      const titleEl = document.getElementById('imp-prev-title');
+      const metaEl = document.getElementById('imp-prev-meta');
+      const countEl = document.getElementById('imp-prev-count');
+      const listEl = document.getElementById('imp-prev-sections');
+      const srcEl = document.getElementById('imp-prev-sources');
+
+      if (titleEl) titleEl.textContent = importerDraft.title;
+      if (metaEl) metaEl.textContent = `${importerDraft.timeSig} • ${importerDraft.bpm} BPM • Estilo: ${importerDraft.style}`;
+      if (countEl) countEl.textContent = `${importerDraft.sections.length} secciones`;
+
+      if (listEl) {
+        listEl.innerHTML = importerDraft.sections.map((sec, idx) => {
+          const latinChords = splitChordsText(sec.chordsText).map(c => chordToLatin(c)).join(' - ');
+          return `
+            <label class="th-subcard border rounded-xl p-2.5 flex items-start gap-2.5 cursor-pointer hover:border-amber-500/60 text-xs">
+              <input type="checkbox" ${sec.selected !== false ? 'checked' : ''} onchange="toggleImporterSectionCheck(${idx}, this.checked)" class="accent-amber-500 mt-1 shrink-0" />
+              <div class="min-w-0 flex-1 space-y-0.5">
+                <div class="flex flex-wrap items-center justify-between gap-1">
+                  <div>
+                    <span class="font-mono-code font-bold th-accent">[${sec.role.toUpperCase()}]</span>
+                    <strong class="ml-1">${sec.name}</strong>
+                  </div>
+                  <span class="font-mono-code text-[11px] th-muted">x${sec.repeats} • ${sec.timeSig} • ${sec.bpm} BPM</span>
+                </div>
+                <div class="font-mono-code font-bold th-accent break-words">${sec.chordsText}</div>
+                <div class="text-[11px] italic th-muted break-words">${latinChords}</div>
+                ${sec.lyrics ? `<div class="text-[11px] th-muted truncate">“${sec.lyrics}”</div>` : ''}
+              </div>
+            </label>
+          `;
+        }).join('');
+      }
+
+      if (srcEl) {
+        if (importerDraft.sources && importerDraft.sources.length) {
+          srcEl.innerHTML = `Fuentes consultadas: ` + importerDraft.sources
+            .map(s => `<a href="${s.uri}" target="_blank" rel="noopener" class="underline hover:text-amber-400 mr-2">${s.title}</a>`)
+            .join('');
+          srcEl.classList.remove('hidden');
+        } else {
+          srcEl.classList.add('hidden');
+        }
+      }
+
+      wrap?.classList.remove('hidden');
+      actions?.classList.remove('hidden');
+    }
+
+    function applyImportedVersion(mode = 'replace') {
+      if (!importerDraft) return;
+      const chosen = importerDraft.sections.filter(s => s.selected !== false);
+      if (!chosen.length) {
+        showToast('Selecciona al menos una sección para importar');
+        return;
+      }
+
+      const builtSections = chosen.map((s, i) => ({
+        id: 'sec_' + Date.now() + '_' + i + '_' + Math.random().toString(36).slice(2, 5),
+        role: s.role || 'Estrofa',
+        name: s.name || `${s.role || 'Estrofa'} ${i + 1}`,
+        chordsText: s.chordsText,
+        voicings: {},
+        durations: {},
+        style: s.style || importerDraft.style || 'folk',
+        timeSig: s.timeSig || importerDraft.timeSig || '4/4',
+        bpm: Number(s.bpm) || importerDraft.bpm || 112,
+        repeats: Math.max(1, Number(s.repeats) || 1),
+        lyrics: s.lyrics || '',
+        isBreak: false
+      }));
+
+      if (mode === 'replace') {
+        state.song.title = importerDraft.title || state.song.title;
+        state.song.base.chordsText = builtSections[0].chordsText;
+        state.song.base.voicings = {};
+        state.song.base.durations = {};
+        state.song.base.style = importerDraft.style || 'folk';
+        state.song.base.timeSig = importerDraft.timeSig || '4/4';
+        state.song.base.bpm = Number(importerDraft.bpm) || 112;
+        state.song.structure = builtSections;
+      } else {
+        state.song.structure.push(...builtSections);
+      }
+
+      closeVersionImporterModal();
+      switchTab('componer');
+      applySongToUI();
+      recordSongHistory();
+      saveLocalState();
+      showToast(mode === 'replace'
+        ? `📥 "${importerDraft.title}" importada (${builtSections.length} secciones)`
+        : `➕ ${builtSections.length} secciones añadidas a la estructura`
+      );
     }
 
     // =========================================================================
