@@ -370,6 +370,7 @@
               <button id="btn-undo" type="button" onclick="undoSongChange()" disabled title="Deshacer (Ctrl+Z)" class="px-2.5 py-1.5 rounded-lg hover:bg-amber-500/15 disabled:opacity-35">↶</button>
               <button id="btn-redo" type="button" onclick="redoSongChange()" disabled title="Rehacer (Ctrl+Y)" class="px-2.5 py-1.5 rounded-lg hover:bg-amber-500/15 disabled:opacity-35">↷</button>
             </div>
+            <button type="button" onclick="openSongVersionsModal()" title="Historial de versiones de esta canción" class="th-input border hover:border-amber-500 text-xs sm:text-sm font-bold px-3 py-2 rounded-xl">📜 Versiones (<span id="song-versions-count-lbl">0</span>)</button>
             <button type="button" onclick="saveCurrentProject(true, true)" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-bold px-3.5 sm:px-4 py-2 rounded-xl shadow-sm">💾 Guardar en Nube</button>
             <button type="button" onclick="createNewSong()" class="th-input border hover:border-amber-500 text-xs sm:text-sm font-semibold px-3 sm:px-3.5 py-2 rounded-xl">✨ Tema Nuevo</button>
           </div>
@@ -507,6 +508,35 @@
               <span id="struct-metro-dot" class="w-2 h-2 rounded-full bg-stone-500"></span>
               <span>⏱️ Clic: OFF</span>
             </button>
+            <select
+              id="struct-all-style-select"
+              onchange="setAllSectionsStyle(this.value)"
+              title="Cambiar rasgueo de todas las secciones de la canción"
+              class="th-input border hover:border-amber-500 rounded-xl px-2.5 py-2 text-xs sm:text-sm font-bold max-w-full"
+            >
+              <option value="">🎸 Rasgueo todas...</option>
+              <option value="folk">🪕 Folk Boom-Chick</option>
+              <option value="bumditty">🪕 Ban-Ditty</option>
+              <option value="gallop">🐎 Galope a Caballo</option>
+              <option value="country">🤠 Country Train</option>
+              <option value="swing">🎷 Swing Atresillado</option>
+              <option value="foxtrot">🎩 Foxtrot Vintage</option>
+              <option value="circus">🎪 Circus / Oom-Pah</option>
+              <option value="gypsy">🎻 Gypsy Manouche</option>
+              <option value="ragtime">🎹 Ragtime / Dixieland</option>
+              <option value="polka">🪗 Polka Saltarina</option>
+              <option value="offbeat">⚡ Contratiempo / Ska-Folk</option>
+              <option value="reggae">🌴 Reggae / Skank</option>
+              <option value="punkfolk">🔥 Folk-Punk a Contra</option>
+              <option value="cumbia">💃 Cumbia / Marcha a Contra</option>
+              <option value="bluegrass">🔥 Bluegrass Chop</option>
+              <option value="strum">🎸 Rasgueo Abierto</option>
+              <option value="arpeggio">✨ Arpegio Folk</option>
+              <option value="quarterMute">🔇 Seco de Negra</option>
+              <option value="quarterPower">⚡ Negras con Fuerza</option>
+              <option value="waltz">💃 Vals 3/4</option>
+              <option value="jig">🍀 Jig 6/8</option>
+            </select>
             <button type="button" onclick="openVersionImporterModal('search')" class="th-input border border-amber-500/50 hover:border-amber-500 th-accent font-bold px-3.5 py-2.5 rounded-xl text-xs sm:text-sm">📥 Importar Versión</button>
             <button type="button" id="btn-play-all" onclick="togglePlayAllStructure(-1)" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-2.5 rounded-xl shadow-sm text-xs sm:text-sm">▶ Tocar Todo (Karaoke)</button>
           </div>
@@ -550,12 +580,12 @@
           </div>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
-          <div class="lg:col-span-6 th-subcard border rounded-2xl p-3.5 space-y-2.5 max-h-80 overflow-y-auto">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+          <div class="lg:col-span-6 th-subcard border rounded-2xl p-3.5 space-y-2.5">
             <div class="text-xs font-bold uppercase th-muted">Teleprompter de Estructura Completa</div>
             <div id="rec-structure-guide" class="space-y-2"></div>
           </div>
-          <div class="lg:col-span-6 th-subcard border rounded-2xl p-3.5 space-y-3">
+          <div class="lg:col-span-6 th-subcard border rounded-2xl p-3.5 space-y-3 lg:sticky lg:top-24">
             <div class="flex items-center justify-between text-xs gap-2">
               <span id="rec-status-msg" class="font-bold th-muted truncate">Listo para grabar micrófono</span>
               <span id="rec-level-lbl" class="font-mono-code font-bold th-accent shrink-0">0%</span>
@@ -643,6 +673,8 @@
               class="th-input border rounded-xl px-3 py-2 text-xs sm:text-sm w-full sm:w-auto"
             />
             <button type="button" onclick="syncProjectsFromCloud(true)" class="bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold px-3.5 py-2 rounded-xl text-xs sm:text-sm">↻ Sincronizar Drive</button>
+            <button type="button" onclick="openJsonBackupsModal()" class="th-input border border-emerald-500/50 hover:border-emerald-500 text-emerald-400 font-bold px-3.5 py-2 rounded-xl text-xs sm:text-sm">🛡️ Copias .JSON (<span id="json-backups-count-lbl">0</span>)</button>
+            <button type="button" onclick="exportProjectsJson(true)" class="th-input border hover:border-amber-500 font-bold px-3.5 py-2 rounded-xl text-xs sm:text-sm">⬇ Backup .JSON</button>
             <button type="button" onclick="openVersionImporterModal('search')" class="th-input border border-amber-500/50 hover:border-amber-500 th-accent font-bold px-3.5 py-2 rounded-xl text-xs sm:text-sm">📥 Importar Versión</button>
             <button type="button" onclick="createNewSong(); switchTab('componer');" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3.5 py-2 rounded-xl text-xs sm:text-sm">✨ Nueva Canción</button>
           </div>
@@ -941,7 +973,8 @@
           <p class="text-xs th-muted">Canciones compartidas de Billy Mugre's Cult</p>
         </div>
         <div class="flex flex-wrap items-center gap-1.5">
-          <button type="button" onclick="exportProjectsJson()" class="th-input border hover:border-amber-500 text-xs font-bold px-3 py-2 rounded-xl">⬇ .JSON</button>
+          <button type="button" onclick="openJsonBackupsModal()" class="th-input border border-emerald-500/50 hover:border-emerald-500 text-emerald-400 text-xs font-bold px-3 py-2 rounded-xl">🛡️ Copias Seguridad</button>
+          <button type="button" onclick="exportProjectsJson(true)" class="th-input border hover:border-amber-500 text-xs font-bold px-3 py-2 rounded-xl">⬇ .JSON</button>
           <label class="th-input border hover:border-amber-500 text-xs font-bold px-3 py-2 rounded-xl cursor-pointer">
             ⬆ .JSON
             <input type="file" accept=".json,application/json" onchange="importProjectsJson(event)" class="hidden" />
@@ -953,6 +986,56 @@
       </div>
 
       <div id="songs-modal-list" class="space-y-2.5 overflow-y-auto flex-1 pr-1"></div>
+    </div>
+  </div>
+
+  <!-- MODAL 6: CONTROL DE VERSIONES DE LA CANCIÓN -->
+  <div id="song-versions-modal" onclick="if (event.target === this) closeSongVersionsModal()" class="fixed inset-0 z-50 hidden bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+    <div class="th-card border rounded-2xl max-w-xl w-full p-4 sm:p-5 shadow-2xl space-y-4 max-h-[88vh] flex flex-col">
+      <div class="flex flex-wrap items-center justify-between gap-2 border-b pb-3" style="border-color: var(--border-main);">
+        <div class="min-w-0">
+          <h3 class="font-serif-title text-lg sm:text-xl font-bold truncate">📜 Control de Versiones del Tema</h3>
+          <p id="sv-modal-subtitle" class="text-xs th-muted truncate">Instantáneas guardadas de esta canción para volver atrás cuando quieras</p>
+        </div>
+        <button type="button" onclick="closeSongVersionsModal()" class="th-input border px-3 py-1.5 rounded-xl text-xs font-bold shrink-0">✕</button>
+      </div>
+
+      <form onsubmit="event.preventDefault(); createManualSongVersion();" class="flex flex-col sm:flex-row gap-2">
+        <input
+          id="sv-label-input"
+          type="text"
+          placeholder="Nota de versión (ej: Arreglo puente nuevo, Tono en G...)"
+          class="flex-1 th-input border rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:border-amber-500"
+        />
+        <button type="submit" class="bg-amber-500 hover:bg-amber-400 text-stone-950 font-extrabold px-4 py-2 rounded-xl text-xs shrink-0">
+          📸 Guardar Versión Ahora
+        </button>
+      </form>
+
+      <div id="sv-list" class="space-y-2 overflow-y-auto flex-1 pr-1"></div>
+    </div>
+  </div>
+
+  <!-- MODAL 7: COPIAS DE SEGURIDAD DEL .JSON -->
+  <div id="json-backups-modal" onclick="if (event.target === this) closeJsonBackupsModal()" class="fixed inset-0 z-50 hidden bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+    <div class="th-card border rounded-2xl max-w-2xl w-full p-4 sm:p-5 shadow-2xl space-y-4 max-h-[88vh] flex flex-col">
+      <div class="flex flex-wrap items-center justify-between gap-2 border-b pb-3" style="border-color: var(--border-main);">
+        <div class="min-w-0">
+          <h3 class="font-serif-title text-lg sm:text-xl font-bold truncate">🛡️ Copias de Seguridad del Repertorio (.JSON)</h3>
+          <p class="text-xs th-muted">Respaldos automáticos y manuales de todas las canciones y el banco de bloques</p>
+        </div>
+        <button type="button" onclick="closeJsonBackupsModal()" class="th-input border px-3 py-1.5 rounded-xl text-xs font-bold shrink-0">✕</button>
+      </div>
+
+      <div class="flex flex-wrap items-center justify-between gap-2 th-subcard border rounded-xl p-3 text-xs">
+        <span class="th-muted">Se guarda una copia automática antes de sobrescribir o limpiar el repertorio.</span>
+        <div class="flex flex-wrap items-center gap-1.5">
+          <button type="button" onclick="createJsonBackupSnapshot('Copia manual')" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-2 rounded-xl">➕ Crear Copia Interna</button>
+          <button type="button" onclick="exportProjectsJson(true)" class="bg-amber-500 hover:bg-amber-400 text-stone-950 font-extrabold px-3 py-2 rounded-xl">⬇ Descargar .JSON</button>
+        </div>
+      </div>
+
+      <div id="jb-list" class="space-y-2 overflow-y-auto flex-1 pr-1"></div>
     </div>
   </div>
 
@@ -1033,6 +1116,11 @@
           </select>
         </div>
       </div>
+
+      <label class="th-subcard border rounded-xl px-3 py-2 flex items-center gap-2 cursor-pointer text-xs font-bold">
+        <input id="se-apply-same-role-style" type="checkbox" class="accent-amber-500 w-4 h-4" />
+        <span>Aplicar este rasgueo a todas las partes de tipo <strong id="se-role-sync-lbl" class="th-accent">Estrofa</strong></span>
+      </label>
 
       <div>
         <label class="text-[11px] font-bold uppercase th-muted">Letra / Notas</label>
@@ -1172,6 +1260,7 @@
     // =========================================================================
     const GAS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbyW_bOCulTCXZOWL1EZbLBUYxozy97Dumuo--Gem4AK6aoyQPaEdPiD4Ga7iu8-8tIpPw/exec';
     const STORAGE_KEY = 'billy_mugre_studio_v02';
+    const BACKUPS_STORAGE_KEY = 'billy_mugre_json_backups_v01';
     const CULT_ACCESS_KEY = 'billy_mugre_auth_ok';
     const CULT_WINDOW_FLAG = 'BILLY_MUGRE_UNLOCKED=1';
     const CULT_SECRET = 'muchamugre';
@@ -1477,8 +1566,10 @@
           bpm: 112
         },
         structure: [],
+        versions: [],
         takes: []
       },
+      jsonBackups: [],
       history: [],
       historyIndex: -1,
       isApplyingHistory: false,
@@ -1647,10 +1738,29 @@
               durations: parsed.song.base?.durations || {}
             },
             structure: Array.isArray(parsed.song.structure) ? parsed.song.structure : [],
+            versions: Array.isArray(parsed.song.versions) ? parsed.song.versions : [],
             takes: Array.isArray(parsed.song.takes) ? parsed.song.takes : []
           };
         }
       } catch (e) {}
+      loadJsonBackups();
+    }
+
+    function loadJsonBackups() {
+      try {
+        const raw = localStorage.getItem(BACKUPS_STORAGE_KEY);
+        if (!raw) return;
+        const arr = JSON.parse(raw);
+        if (Array.isArray(arr)) state.jsonBackups = arr;
+      } catch (e) {}
+    }
+
+    function persistJsonBackups() {
+      try {
+        localStorage.setItem(BACKUPS_STORAGE_KEY, JSON.stringify((state.jsonBackups || []).slice(0, 20)));
+      } catch (e) {}
+      const jbLbl = document.getElementById('json-backups-count-lbl');
+      if (jbLbl) jbLbl.textContent = String((state.jsonBackups || []).length);
     }
 
     function saveLocalState() {
@@ -1680,9 +1790,231 @@
       const sc = document.getElementById('songs-count-lbl');
       const bc = document.getElementById('bank-count-lbl');
       const tc = document.getElementById('takes-count-lbl');
+      const vc = document.getElementById('song-versions-count-lbl');
+      const jc = document.getElementById('json-backups-count-lbl');
       if (sc) sc.textContent = String(state.projects.length);
       if (bc) bc.textContent = String(state.bank.length);
       if (tc) tc.textContent = String((state.song.takes || []).length);
+      if (vc) vc.textContent = String((state.song.versions || []).length);
+      if (jc) jc.textContent = String((state.jsonBackups || []).length);
+    }
+
+    function formatBackupDate(ts) {
+      if (!ts) return '';
+      try {
+        return new Date(ts).toLocaleString('es-ES', {
+          day: '2-digit', month: '2-digit', year: '2-digit',
+          hour: '2-digit', minute: '2-digit'
+        });
+      } catch (e) {
+        return '';
+      }
+    }
+
+    function pushSongVersionSnapshot(label = 'Guardado en nube', silent = true) {
+      if (!Array.isArray(state.song.versions)) state.song.versions = [];
+      const coreSnap = JSON.stringify({
+        title: state.song.title,
+        folder: state.song.folder,
+        base: state.song.base,
+        structure: state.song.structure
+      });
+      if (state.song.versions.length && state.song.versions[0].coreHash === coreSnap) {
+        return false;
+      }
+      const ver = {
+        id: 'ver_' + Date.now() + '_' + Math.random().toString(36).slice(2, 5),
+        label: String(label || 'Versión').trim(),
+        author: state.currentUser?.name || 'Culto',
+        createdAt: Date.now(),
+        coreHash: coreSnap,
+        data: JSON.parse(coreSnap)
+      };
+      state.song.versions.unshift(ver);
+      if (state.song.versions.length > 25) state.song.versions = state.song.versions.slice(0, 25);
+      saveLocalState();
+      if (!silent) showToast(`📜 Versión guardada: ${ver.label}`);
+      return true;
+    }
+
+    function createManualSongVersion() {
+      const inp = document.getElementById('sv-label-input');
+      const custom = (inp?.value || '').trim();
+      const num = (state.song.versions || []).length + 1;
+      const label = custom || `v${num} • ${state.song.base?.chordsText || 'Snapshot'}`;
+      if (!Array.isArray(state.song.versions)) state.song.versions = [];
+      const coreSnap = JSON.stringify({
+        title: state.song.title,
+        folder: state.song.folder,
+        base: state.song.base,
+        structure: state.song.structure
+      });
+      state.song.versions.unshift({
+        id: 'ver_' + Date.now() + '_' + Math.random().toString(36).slice(2, 5),
+        label,
+        author: state.currentUser?.name || 'Culto',
+        createdAt: Date.now(),
+        coreHash: coreSnap,
+        data: JSON.parse(coreSnap)
+      });
+      if (state.song.versions.length > 25) state.song.versions = state.song.versions.slice(0, 25);
+      if (inp) inp.value = '';
+      saveLocalState();
+      renderSongVersionsList();
+      showToast(`📜 Versión guardada: ${label}`);
+    }
+
+    function restoreSongVersion(verId) {
+      const ver = (state.song.versions || []).find(v => v.id === verId);
+      if (!ver || !ver.data) return;
+      stopAllPlayback();
+      pushSongVersionSnapshot('Antes de restaurar versión', true);
+      state.song.title = ver.data.title || state.song.title;
+      state.song.folder = ver.data.folder || state.song.folder;
+      state.song.base = JSON.parse(JSON.stringify(ver.data.base || state.song.base));
+      state.song.structure = JSON.parse(JSON.stringify(ver.data.structure || []));
+      applySongToUI();
+      recordSongHistory();
+      saveLocalState();
+      renderSongVersionsList();
+      showToast(`⏪ Restaurada: ${ver.label}`);
+    }
+
+    function deleteSongVersion(verId) {
+      state.song.versions = (state.song.versions || []).filter(v => v.id !== verId);
+      saveLocalState();
+      renderSongVersionsList();
+    }
+
+    function openSongVersionsModal() {
+      const sub = document.getElementById('sv-modal-subtitle');
+      if (sub) sub.textContent = `Tema: "${state.song.title || 'Sin título'}" • ${(state.song.versions || []).length} versiones guardadas`;
+      renderSongVersionsList();
+      document.getElementById('song-versions-modal')?.classList.remove('hidden');
+    }
+
+    function closeSongVersionsModal() {
+      document.getElementById('song-versions-modal')?.classList.add('hidden');
+    }
+
+    function renderSongVersionsList() {
+      const box = document.getElementById('sv-list');
+      if (!box) return;
+      const list = state.song.versions || [];
+      if (!list.length) {
+        box.innerHTML = `<div class="text-xs th-muted text-center py-6">Aún no hay versiones guardadas de esta canción. Pulsa <strong>📸 Guardar Versión Ahora</strong> o guarda en la nube.</div>`;
+        return;
+      }
+      box.innerHTML = list.map((v, idx) => `
+        <div class="th-subcard border rounded-xl p-3 flex items-center justify-between gap-2 text-xs">
+          <div class="min-w-0 flex-1 space-y-0.5">
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span class="font-mono-code font-bold th-accent">#${list.length - idx}</span>
+              <strong class="truncate">${v.label}</strong>
+            </div>
+            <div class="font-mono-code text-[11px] th-accent truncate">${v.data?.base?.chordsText || ''} • ${(v.data?.structure || []).length} secciones • ${v.data?.base?.bpm || 112} BPM</div>
+            <div class="text-[11px] th-muted">👤 ${v.author || 'Culto'} • 🕒 ${formatBackupDate(v.createdAt)}</div>
+          </div>
+          <div class="flex items-center gap-1.5 shrink-0">
+            <button type="button" onclick="restoreSongVersion('${v.id}')" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1.5 rounded-lg">⏪ Restaurar</button>
+            <button type="button" onclick="deleteSongVersion('${v.id}')" class="th-input border hover:border-rose-500 text-rose-400 font-bold px-2.5 py-1.5 rounded-lg">✕</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function createJsonBackupSnapshot(reason = 'Copia de seguridad', silent = false) {
+      if (!Array.isArray(state.jsonBackups)) state.jsonBackups = [];
+      const cleanProjects = JSON.parse(JSON.stringify(state.projects || []));
+      const cleanBank = JSON.parse(JSON.stringify(state.bank || []));
+      const entry = {
+        id: 'jb_' + Date.now() + '_' + Math.random().toString(36).slice(2, 5),
+        reason: String(reason || 'Backup').trim(),
+        author: state.currentUser?.name || 'Culto',
+        createdAt: Date.now(),
+        songsCount: cleanProjects.length,
+        bankCount: cleanBank.length,
+        payload: {
+          exportedAt: new Date().toISOString(),
+          projects: cleanProjects,
+          bank: cleanBank
+        }
+      };
+      state.jsonBackups.unshift(entry);
+      if (state.jsonBackups.length > 20) state.jsonBackups = state.jsonBackups.slice(0, 20);
+      persistJsonBackups();
+      renderJsonBackupsList();
+      if (!silent) showToast(`🛡️ Backup creado (${entry.songsCount} canciones)`);
+      return entry;
+    }
+
+    function restoreJsonBackup(backupId) {
+      const entry = (state.jsonBackups || []).find(b => b.id === backupId);
+      if (!entry || !entry.payload) return;
+      createJsonBackupSnapshot('Auto-backup previo a restauración', true);
+      if (Array.isArray(entry.payload.projects)) state.projects = JSON.parse(JSON.stringify(entry.payload.projects));
+      if (Array.isArray(entry.payload.bank)) state.bank = JSON.parse(JSON.stringify(entry.payload.bank));
+      saveLocalState();
+      renderSongsModalList();
+      renderSongsFoldersPage();
+      renderBankList();
+      renderJsonBackupsList();
+      showToast(`⏪ Repertorio restaurado (${state.projects.length} canciones)`);
+    }
+
+    function downloadJsonBackupById(backupId) {
+      const entry = (state.jsonBackups || []).find(b => b.id === backupId);
+      if (!entry || !entry.payload) return;
+      const blob = new Blob([JSON.stringify(entry.payload, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const stamp = new Date(entry.createdAt || Date.now()).toISOString().replace(/[:T]/g, '-').slice(0, 16);
+      a.href = url;
+      a.download = `billy_mugre_backup_${stamp}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('⬇ Archivo .JSON de copia de seguridad descargado');
+    }
+
+    function deleteJsonBackup(backupId) {
+      state.jsonBackups = (state.jsonBackups || []).filter(b => b.id !== backupId);
+      persistJsonBackups();
+      renderJsonBackupsList();
+    }
+
+    function openJsonBackupsModal() {
+      renderJsonBackupsList();
+      document.getElementById('json-backups-modal')?.classList.remove('hidden');
+    }
+
+    function closeJsonBackupsModal() {
+      document.getElementById('json-backups-modal')?.classList.add('hidden');
+    }
+
+    function renderJsonBackupsList() {
+      const box = document.getElementById('jb-list');
+      if (!box) return;
+      const list = state.jsonBackups || [];
+      if (!list.length) {
+        box.innerHTML = `<div class="text-xs th-muted text-center py-6">Aún no hay copias de seguridad guardadas. Pulsa <strong>➕ Crear Copia Interna</strong> o <strong>⬇ Descargar .JSON</strong>.</div>`;
+        return;
+      }
+      box.innerHTML = list.map((b, idx) => `
+        <div class="th-subcard border rounded-xl p-3 flex flex-wrap items-center justify-between gap-2 text-xs">
+          <div class="min-w-0 flex-1 space-y-0.5">
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span class="font-mono-code font-bold th-accent">#${list.length - idx}</span>
+              <strong class="truncate">${b.reason}</strong>
+            </div>
+            <div class="th-muted">📂 ${b.songsCount} canciones • ★ ${b.bankCount} bloques • 👤 ${b.author || 'Culto'} • 🕒 ${formatBackupDate(b.createdAt)}</div>
+          </div>
+          <div class="flex items-center gap-1.5 shrink-0">
+            <button type="button" onclick="downloadJsonBackupById('${b.id}')" class="th-input border hover:border-amber-500 font-bold px-2.5 py-1.5 rounded-lg">⬇ .JSON</button>
+            <button type="button" onclick="restoreJsonBackup('${b.id}')" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1.5 rounded-lg">⏪ Restaurar</button>
+            <button type="button" onclick="deleteJsonBackup('${b.id}')" class="th-input border hover:border-rose-500 text-rose-400 font-bold px-2.5 py-1.5 rounded-lg">✕</button>
+          </div>
+        </div>
+      `).join('');
     }
 
     function toggleThemeMode() {
@@ -1766,6 +2098,7 @@
 
     function openUserModal() {
       const grid = document.getElementById('members-grid');
+      if (!grid) return;
       grid.innerHTML = CULT_MEMBERS.map(m => {
         const active = state.currentUser && state.currentUser.id === m.id;
         return `
@@ -1775,11 +2108,11 @@
           </button>
         `;
       }).join('');
-      document.getElementById('user-modal').classList.remove('hidden');
+      document.getElementById('user-modal')?.classList.remove('hidden');
     }
 
     function closeUserModal() {
-      document.getElementById('user-modal').classList.add('hidden');
+      document.getElementById('user-modal')?.classList.add('hidden');
     }
 
     function selectCultMember(id, ev) {
@@ -2059,19 +2392,9 @@
       if (ctx.state === 'suspended') {
         try {
           await ctx.resume();
-          await new Promise(r => setTimeout(r, 50));
+          await new Promise(r => setTimeout(r, 45));
         } catch (e) {}
       }
-      try {
-        const osc = ctx.createOscillator();
-        const g = ctx.createGain();
-        g.gain.setValueAtTime(0.00001, ctx.currentTime);
-        osc.connect(g);
-        g.connect(ctx.destination);
-        osc.start(ctx.currentTime);
-        osc.stop(ctx.currentTime + 0.01);
-        await new Promise(r => setTimeout(r, 20));
-      } catch (e) {}
       return ctx;
     }
 
@@ -2893,13 +3216,13 @@
       saveLocalState();
     }
 
-    function getHarmonicVariationsForChord(rawToken, parsed, contextChords = null) {
+    function getHarmonicVariationsForChord(rawToken, parsed, contextChordsText = null) {
       const m = String(rawToken || '').trim().match(/^([A-Ga-g][#b]?)(.*)$/);
       if (!m || !parsed || parsed.isSilence) return [];
       let rawRoot = m[1][0].toUpperCase() + (m[1].slice(1) || '');
       if (FLAT_TO_SHARP[rawRoot]) rawRoot = FLAT_TO_SHARP[rawRoot];
 
-      const chords = Array.isArray(contextChords) ? contextChords : splitChordsText(state.song.base.chordsText);
+      const chords = splitChordsText(contextChordsText !== null ? contextChordsText : state.song.base.chordsText);
       const firstValid = chords.map(c => parseChordSymbol(c)).find(p => p && !p.isSilence);
       const keyRootPc = firstValid ? firstValid.rootPc : parsed.rootPc;
       const deg = (parsed.rootPc - keyRootPc + 12) % 12;
@@ -2958,7 +3281,6 @@
         });
       });
 
-      // Sustituto relativo diatónico
       if (!isDim) {
         if (isMinor) {
           const relMaj = transposeNoteName(rawRoot, 3);
@@ -2974,12 +3296,13 @@
 
     function openChordVariationsModal(idx, secId = null) {
       const sec = secId ? state.song.structure.find(s => s.id === secId) : null;
-      const chords = sec ? splitChordsText(sec.chordsText) : splitChordsText(state.song.base.chordsText);
+      const contextText = sec ? sec.chordsText : state.song.base.chordsText;
+      const chords = splitChordsText(contextText);
       const rawToken = chords[idx];
       const parsed = parseChordSymbol(rawToken);
       if (!parsed || parsed.isSilence) return;
 
-      const variations = getHarmonicVariationsForChord(rawToken, parsed, chords);
+      const variations = getHarmonicVariationsForChord(rawToken, parsed, contextText);
       const titleEl = document.getElementById('cv-modal-title');
       const subEl = document.getElementById('cv-modal-subtitle');
       const listEl = document.getElementById('cv-modal-list');
@@ -2990,12 +3313,11 @@
       }
       if (subEl) {
         subEl.textContent = sec
-          ? `${sec.name} • Acorde #${idx + 1} • Pulsa 🔊 para preescuchar o Usar para sustituirlo`
-          : `Acorde #${idx + 1} • Pulsa 🔊 para preescuchar o Usar para sustituirlo`;
+          ? `${sec.name} • Acorde #${idx + 1} • Pulsa 🔊 o Usar`
+          : `Rueda Base • Acorde #${idx + 1} • Pulsa 🔊 o Usar`;
       }
 
-      const secArg = sec ? `'${sec.id}'` : 'null';
-
+      const secArg = secId ? `'${secId}'` : 'null';
       listEl.innerHTML = variations.map(v => {
         const vp = parseChordSymbol(v.token);
         if (!vp || vp.isSilence) return '';
@@ -3033,6 +3355,7 @@
     }
 
     function applyChordVariation(idx, rawToken, secId = null) {
+      const vp = parseChordSymbol(rawToken);
       if (secId) {
         const sec = state.song.structure.find(s => s.id === secId);
         if (!sec) return;
@@ -3048,7 +3371,6 @@
         renderRecStructureGuide();
         recordSongHistory();
         saveLocalState();
-        const vp = parseChordSymbol(rawToken);
         showToast(`✨ ${sec.name} (#${idx + 1}) cambiado a ${vp ? vp.display : rawToken}`);
         return;
       }
@@ -3065,7 +3387,6 @@
       renderBaseChords();
       recordSongHistory();
       saveLocalState();
-      const vp = parseChordSymbol(rawToken);
       showToast(`✨ Acorde #${idx + 1} cambiado a ${vp ? vp.display : rawToken}`);
     }
 
@@ -3119,6 +3440,23 @@
       renderMetronomeControls();
       recordSongHistory();
       saveLocalState();
+    }
+
+    function setAllSectionsStyle(newStyle) {
+      if (!newStyle) return;
+      state.song.base.style = newStyle;
+      const baseSel = document.getElementById('base-style-select');
+      if (baseSel) baseSel.value = newStyle;
+      state.song.structure.forEach(s => {
+        if (!s.isBreak) s.style = newStyle;
+      });
+      const masterSel = document.getElementById('struct-all-style-select');
+      if (masterSel) masterSel.value = '';
+      updateStyleDescBanner();
+      renderStructureList();
+      recordSongHistory();
+      saveLocalState();
+      showToast(`🎸 Rasgueo cambiado a "${newStyle}" en toda la canción`);
     }
 
     function adjustAllSectionsTempo(delta) {
@@ -3339,13 +3677,11 @@
           const vIdx = (sec.voicings?.[cIdx] || 0) % voicings.length;
           const frets = voicings[vIdx] || [];
           return `
-            <div id="struct-chord-${sIdx}-${cIdx}" class="struct-chord-card th-card border rounded-xl p-2 text-center min-w-[88px] flex flex-col justify-between gap-1">
-              <div>
-                <div class="font-serif-title text-sm font-extrabold th-accent leading-tight">${parsed.display} ${dur < 1 ? `<span class="text-[10px]">(${dur})</span>` : ''}</div>
-                <div class="text-[10px] italic th-muted leading-tight mb-0.5">${chordToLatin(parsed)}</div>
-              </div>
+            <div id="struct-chord-${sIdx}-${cIdx}" class="struct-chord-card th-card border rounded-xl p-2 text-center min-w-[82px] space-y-1">
+              <div class="font-serif-title text-sm font-extrabold th-accent leading-tight">${parsed.display} ${dur < 1 ? `<span class="text-[10px]">(${dur})</span>` : ''}</div>
+              <div class="text-[10px] italic th-muted leading-tight">${chordToLatin(parsed)}</div>
               ${renderChordSvg(frets, false)}
-              <button type="button" onclick="openChordVariationsModal(${cIdx}, '${sec.id}')" title="Variaciones armónicas de ${parsed.display}" class="w-full th-input border hover:border-amber-500 rounded-lg py-0.5 px-1 text-[10px] font-bold th-accent truncate">✨ Variac.</button>
+              <button type="button" onclick="openChordVariationsModal(${cIdx}, '${sec.id}')" class="w-full th-input border hover:border-amber-500 rounded-md py-0.5 px-1 text-[10px] font-bold th-accent truncate">✨ Variac.</button>
             </div>
           `;
         }).join('');
@@ -3358,7 +3694,7 @@
               <div class="flex flex-wrap items-center gap-1.5 sm:gap-2 min-w-0">
                 <span class="text-[11px] font-mono-code font-bold px-2 py-0.5 rounded bg-black/20 th-accent">#${sIdx + 1} ${sec.role.toUpperCase()}</span>
                 <strong class="text-sm break-words">${sec.name}</strong>
-                <span class="text-[11px] font-mono-code th-muted">${sec.timeSig} • ${sec.bpm} BPM</span>
+                <span class="text-[11px] font-mono-code th-muted">${sec.timeSig} • ${sec.bpm} BPM • ${sec.style || 'folk'}</span>
               </div>
               <div class="flex flex-wrap items-center gap-1">
                 <div class="inline-flex items-center th-input border rounded-lg p-0.5 text-[11px] font-bold" title="Repeticiones de esta sección">
@@ -3405,7 +3741,8 @@
       const sec = state.song.structure.find(s => s.id === id);
       if (!sec) return;
       state.editingSectionId = id;
-      document.getElementById('se-role').value = sec.role;
+      const roleSel = document.getElementById('se-role');
+      roleSel.value = sec.role;
       document.getElementById('se-name').value = sec.name;
       document.getElementById('se-chords').value = sec.chordsText;
       document.getElementById('se-timesig').value = sec.timeSig;
@@ -3413,6 +3750,13 @@
       document.getElementById('se-repeats').value = sec.repeats || 1;
       document.getElementById('se-style').value = sec.style || 'folk';
       document.getElementById('se-lyrics').value = sec.lyrics || '';
+      const syncChk = document.getElementById('se-apply-same-role-style');
+      const syncLbl = document.getElementById('se-role-sync-lbl');
+      if (syncChk) syncChk.checked = false;
+      if (syncLbl) syncLbl.textContent = sec.role;
+      roleSel.onchange = () => {
+        if (syncLbl) syncLbl.textContent = roleSel.value;
+      };
       document.getElementById('section-editor-modal').classList.remove('hidden');
     }
 
@@ -3432,11 +3776,24 @@
       sec.repeats = Math.max(1, Math.min(32, parseInt(document.getElementById('se-repeats').value, 10) || 1));
       sec.style = document.getElementById('se-style').value;
       sec.lyrics = document.getElementById('se-lyrics').value;
+
+      const applySameRole = document.getElementById('se-apply-same-role-style')?.checked;
+      if (applySameRole) {
+        state.song.structure.forEach(other => {
+          if (other.role === sec.role && !other.isBreak) {
+            other.style = sec.style;
+          }
+        });
+      }
+
       closeSectionEditor();
       renderStructureList();
       renderRecStructureGuide();
       recordSongHistory();
       saveLocalState();
+      if (applySameRole) {
+        showToast(`🎸 Rasgueo aplicado a todas las partes de tipo "${sec.role}"`);
+      }
     }
 
     // Reproducción de Rueda Base, Estructura Karaoke e Inspiraciones
@@ -3535,8 +3892,8 @@
         const reps = Math.max(1, Number(sec.repeats) || 1);
         if (startSecIdx >= 0 && sIdx < startSecIdx) return;
         for (let r = 0; r < reps; r++) {
-          chords.forEach((tok, cIdx) => {
-            timeline.push({ sec, sIdx, cIdx, rep: r + 1, reps, tok });
+          chords.forEach((_, cIdx) => {
+            timeline.push({ sec, sIdx, cIdx, rep: r + 1, reps });
           });
         }
       });
@@ -3558,19 +3915,17 @@
         }
         const item = timeline[cursor];
         const nextItem = timeline[cursor + 1];
-        const liveSec = state.song.structure[item.sIdx] || item.sec;
-        const liveChords = liveSec.isBreak ? ['NC'] : splitChordsText(liveSec.chordsText);
-        const liveTok = liveChords[item.cIdx] || item.tok;
-        const nextLiveSec = nextItem ? (state.song.structure[nextItem.sIdx] || nextItem.sec) : null;
-        const nextLiveTok = nextItem
-          ? ((nextLiveSec && !nextLiveSec.isBreak ? splitChordsText(nextLiveSec.chordsText)[nextItem.cIdx] : null) || nextItem.tok)
-          : null;
-
         const secKey = `${item.sIdx}-${item.rep}`;
         if (secKey !== prevSecKey) {
           barProgress = 0;
           prevSecKey = secKey;
         }
+
+        const liveChords = item.sec.isBreak ? ['NC'] : splitChordsText(item.sec.chordsText);
+        const liveTok = liveChords[item.cIdx] || 'NC';
+        const nextLiveTok = nextItem
+          ? ((nextItem.sec.isBreak ? ['NC'] : splitChordsText(nextItem.sec.chordsText))[nextItem.cIdx] || 'NC')
+          : null;
 
         document.querySelectorAll('.active-play').forEach(el => el.classList.remove('active-play'));
         document.querySelectorAll('.active-sec').forEach(el => el.classList.remove('active-sec'));
@@ -3579,10 +3934,10 @@
 
         const parsed = parseChordSymbol(liveTok);
         const nextParsed = nextLiveTok ? parseChordSymbol(nextLiveTok) : null;
-        const vIdx = liveSec.voicings?.[item.cIdx] || 0;
-        const frac = Number(liveSec.durations?.[item.cIdx]) || 1;
-        const bpm = Number(liveSec.bpm) || 112;
-        const ts = liveSec.timeSig || '4/4';
+        const vIdx = item.sec.voicings?.[item.cIdx] || 0;
+        const frac = Number(item.sec.durations?.[item.cIdx]) || 1;
+        const bpm = Number(item.sec.bpm) || 112;
+        const ts = item.sec.timeSig || '4/4';
         const beats = ts === '3/4' ? 3 : (ts === '2/4' ? 2 : (ts === '6/8' ? 3 : 4));
         const beatOffset = Math.round(barProgress * beats) % beats;
         const beatSec = 60 / bpm;
@@ -3595,8 +3950,8 @@
           }
         }
 
-        document.getElementById('atril-sec-lbl').textContent = `${liveSec.role.toUpperCase()} • ${liveSec.name} (Vuelta ${item.rep}/${item.reps})`;
-        document.getElementById('atril-meta-lbl').textContent = liveSec.lyrics || `${ts} • ${bpm} BPM`;
+        document.getElementById('atril-sec-lbl').textContent = `${item.sec.role.toUpperCase()} • ${item.sec.name} (Vuelta ${item.rep}/${item.reps})`;
+        document.getElementById('atril-meta-lbl').textContent = item.sec.lyrics || `${ts} • ${bpm} BPM`;
         document.getElementById('atril-chord-big').textContent = parsed ? parsed.display : liveTok;
         const latinBig = document.getElementById('atril-chord-latin');
         if (latinBig) latinBig.textContent = parsed ? chordToLatin(parsed) : '';
@@ -3612,7 +3967,7 @@
             diagBox.innerHTML = '';
           }
         }
-        playBarRhythm(parsed, vIdx, liveSec.style, ts, bpm, frac, beatOffset);
+        playBarRhythm(parsed, vIdx, item.sec.style, ts, bpm, frac, beatOffset);
         barProgress = Math.round((barProgress + frac) * 100) / 100;
         if (barProgress >= 0.99) barProgress = 0;
         cursor++;
@@ -4252,6 +4607,7 @@
           bpm: 112
         },
         structure: [],
+        versions: [],
         takes: []
       };
       applySongToUI();
@@ -4268,6 +4624,7 @@
       if (!state.song.base.voicings) state.song.base.voicings = {};
       if (!state.song.base.durations) state.song.base.durations = {};
       if (!Array.isArray(state.song.structure)) state.song.structure = [];
+      if (!Array.isArray(state.song.versions)) state.song.versions = [];
       if (!Array.isArray(state.song.takes)) state.song.takes = [];
       applySongToUI();
       recordSongHistory(true);
@@ -4288,6 +4645,7 @@
     async function saveCurrentProject(toCloud = true, notify = true) {
       state.song.updatedAt = Date.now();
       state.song.lockedBy = state.currentUser?.name || state.song.lockedBy || null;
+      pushSongVersionSnapshot(toCloud ? 'Guardado en nube' : 'Guardado local', true);
       const cleanSong = JSON.parse(JSON.stringify(state.song));
       cleanSong.takes = (cleanSong.takes || []).map(t => ({
         id: t.id,
@@ -4301,6 +4659,7 @@
       const idx = state.projects.findIndex(p => p.id === cleanSong.id);
       if (idx >= 0) state.projects[idx] = cleanSong;
       else state.projects.unshift(cleanSong);
+      createJsonBackupSnapshot(`Auto-backup (${cleanSong.title || 'Tema'})`, true);
       saveLocalState();
       renderSongsFoldersPage();
 
@@ -4329,6 +4688,7 @@
         const res = await fetch(`${GAS_WEBAPP_URL}?action=getProjects&t=${Date.now()}`);
         const data = await res.json();
         if (Array.isArray(data.projects)) {
+          if (state.projects.length) createJsonBackupSnapshot('Auto-backup previo a sincronizar Drive', true);
           state.projects = data.projects;
         }
         if (Array.isArray(data.bank) && data.bank.length) {
@@ -4415,14 +4775,25 @@
       }).join('');
     }
 
-    function exportProjectsJson() {
-      const blob = new Blob([JSON.stringify({ projects: state.projects, bank: state.bank }, null, 2)], { type: 'application/json' });
+    function exportProjectsJson(alsoStoreSnapshot = false) {
+      if (alsoStoreSnapshot) {
+        createJsonBackupSnapshot('Exportación manual .JSON', true);
+      }
+      const payload = {
+        app: "Billy Mugre's Cult Studio",
+        exportedAt: new Date().toISOString(),
+        projects: state.projects,
+        bank: state.bank
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
+      const stamp = new Date().toISOString().replace(/[:T]/g, '-').slice(0, 16);
       a.href = url;
-      a.download = `billy_mugre_repertorio_${new Date().toISOString().slice(0, 10)}.json`;
+      a.download = `billy_mugre_backup_${stamp}.json`;
       a.click();
       URL.revokeObjectURL(url);
+      showToast('⬇ Copia de seguridad .JSON descargada');
     }
 
     function importProjectsJson(ev) {
@@ -4432,6 +4803,9 @@
       reader.onload = () => {
         try {
           const parsed = JSON.parse(String(reader.result || '{}'));
+          if (state.projects.length) {
+            createJsonBackupSnapshot('Auto-backup previo a importar .JSON', true);
+          }
           if (Array.isArray(parsed.projects)) state.projects = parsed.projects;
           if (Array.isArray(parsed.bank)) state.bank = parsed.bank;
           saveLocalState();
@@ -4448,6 +4822,9 @@
     }
 
     function resetCleanCloudJson() {
+      if (state.projects.length) {
+        createJsonBackupSnapshot('Backup de seguridad antes de limpiar .JSON', true);
+      }
       state.projects = [];
       saveLocalState();
       renderSongsModalList();
