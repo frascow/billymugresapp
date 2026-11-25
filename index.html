@@ -1709,42 +1709,42 @@
         if (el && autoPlay) el.play().catch(() => {});
         return;
       }
-
-      const cached = await getTakeBlobIdb(id);
-      if (cached) {
-        take.url = URL.createObjectURL(cached);
-        renderSongTakesList();
-        if (autoPlay) {
-          setTimeout(() => document.getElementById(`take-audio-${id}`)?.play().catch(() => {}), 40);
-        }
-        return;
-      }
-
-      const fileId = extractDriveFileId(take.driveUrl);
-      if (!fileId) {
-        showToast('⚠️ Este audio no tiene ID válido de Drive');
-        return;
-      }
+      const fileId = extractDriveFileId(take.driveUrl) || take.driveFileId || '';
 
       take._loadingDrive = true;
       renderSongTakesList();
       try {
-        const res = await fetch(`${GAS_WEBAPP_URL}?action=getAudioTake&fileId=${encodeURIComponent(fileId)}&t=${Date.now()}`);
+        const query = fileId
+          ? `action=getAudioTake&fileId=${encodeURIComponent(fileId)}&fileName=${encodeURIComponent(take.name || '')}&songTitle=${encodeURIComponent(state.song.title || '')}&t=${Date.now()}`
+          : `action=getAudioTake&fileName=${encodeURIComponent(take.name || '')}&songTitle=${encodeURIComponent(state.song.title || '')}&t=${Date.now()}`;
+        const res = await fetch(`${GAS_WEBAPP_URL}?${query}`);
         const data = await res.json();
         if (!data || !data.base64Data) {
           throw new Error(data?.message || 'Sin datos de audio');
+        }
+        const resolvedId = data.fileId || data.id || fileId;
+        if (resolvedId) {
+          take.driveFileId = resolvedId;
+          take.driveUrl = `https://drive.google.com/file/d/${resolvedId}/view`;
         }
         const guessedMime = data.mimeType || (/\.m4a$/i.test(take.name) ? 'audio/mp4' : (/\.mp3$/i.test(take.name) ? 'audio/mpeg' : (/\.wav$/i.test(take.name) ? 'audio/wav' : 'audio/webm')));
         const blob = base64ToBlob(data.base64Data, guessedMime);
         await saveTakeBlobIdb(id, blob);
         take.url = URL.createObjectURL(blob);
         delete take._loadingDrive;
+        saveLocalState();
         renderSongTakesList();
         if (autoPlay) {
           setTimeout(() => document.getElementById(`take-audio-${id}`)?.play().catch(() => {}), 50);
         }
       } catch (e) {
         delete take._loadingDrive;
+        if (!fileId) {
+          take._missingDriveId = true;
+          renderSongTakesList();
+          showToast('⚠️ Ese audio antiguo se subió sin ID; vuelve a subirlo desde el dispositivo original');
+          return;
+        }
         const directStreamUrl = `https://docs.google.com/uc?export=open&id=${encodeURIComponent(fileId)}`;
         take.url = directStreamUrl;
         take._fallbackDriveUrl = `https://drive.usercontent.google.com/download?id=${encodeURIComponent(fileId)}&export=download&confirm=t`;
@@ -1786,6 +1786,39 @@
         showToast(`✎ Audio renombrado a "${nextName}"`);
       }
       renderSongTakesList();
+    }
+
+    function startRenameTake(id) {
+      const take = (state.song.takes || []).find(t => t.id === id);
+      if (!take) return;
+      take._renaming = true;
+      renderSongTakesList();
+      setTimeout(() => {
+        const inp = document.getElementById(`take-rename-inp-${id}`);
+        if (inp) {
+          inp.focus();
+          inp.select();
+        }
+      }, 20);
+    }
+
+    function cancelRenameTake(id) {
+      const take = (state.song.takes || []).find(t => t.id === id);
+      if (!take) return;
+      delete take._renaming;
+      renderSongTakesList();
+    }
+
+    // =========================================================================
+    // 3. UTILIDADES GENERALES, PERSISTENCIA, AUTH BLINDADA Y TEMA
+    // =========================================================================
+    function showToast(msg) {
+      const box = document.getElementById('toast-box');
+      if (!box) return;
+      box.textContent = msg;
+      box.classList.remove('hidden');
+      clearTimeout(box._timer);
+      box._timer = setTimeout(() => box.classList.add('hidden'), 3200);
     }
 
     function markCultUnlocked() {
@@ -4508,23 +4541,36 @@
           reader.onerror = reject;
           reader.readAsDataURL(blob);
         });
+        const ext = /\.m4a$/i.test(take.name) ? '' : (/\.mp3$/i.test(take.name) ? '' : (/\.wav$/i.test(take.name) ? '' : '.webm'));
         const res = await fetch(GAS_WEBAPP_URL, {
           method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
           body: JSON.stringify({
             action: 'uploadAudioTake',
             songTitle: state.song.title,
-            fileName: `${state.song.title}_${take.name}.webm`,
+            fileName: `${state.song.title}_${take.name}${ext}`,
             mimeType: blob.type || 'audio/webm',
             base64Data: base64
           })
         });
         const data = await res.json().catch(() => ({}));
-        take.driveUrl = data.url || data.fileUrl || 'https://drive.google.com';
+        const rawUrl = data.url || data.fileUrl || data.webViewLink || '';
+        const returnedId = data.fileId || data.id || extractDriveFileId(rawUrl);
+        if (!returnedId && !extractDriveFileId(rawUrl)) {
+          throw new Error(data.message || 'Drive no devolvió el ID del archivo');
+        }
+        take.driveFileId = returnedId || extractDriveFileId(rawUrl);
+        take.driveUrl = extractDriveFileId(rawUrl)
+          ? rawUrl
+          : `https://drive.google.com/file/d/${take.driveFileId}/view`;
+        delete take._missingDriveId;
+        delete take._streamBlocked;
         renderSongTakesList();
         saveLocalState();
-        showToast('☁️ Toma subida a Google Drive');
+        saveCurrentProject(true, false);
+        showToast('☁️ Toma subida y vinculada en Drive');
       } catch (e) {
-        showToast('⚠️ Error al subir la toma a Drive');
+        showToast(`⚠️ Error al subir a Drive: ${e.message || 'revisa el script'}`);
       } finally {
         hideGlobalProgress();
       }
@@ -4571,6 +4617,7 @@
                   <button type="button" onclick="loadAndPlayDriveTake('${t.id}', true)" ${t._loadingDrive ? 'disabled' : ''} class="w-full bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-stone-950 font-extrabold py-2 px-3 rounded-xl text-xs flex items-center justify-center gap-2">
                     <span>${t._loadingDrive ? '⏳ Cargando audio de Drive...' : '▶ Reproducir Audio de Drive'}</span>
                   </button>
+                  ${t._missingDriveId ? `<div class="text-[11px] text-amber-400 text-center">⚠️ Este audio se subió antes de guardar el ID de archivo. Súbelo de nuevo desde el móvil para vincular su enlace directo.</div>` : ''}
                   ${t._streamBlocked ? `<div class="text-[11px] text-amber-400 text-center">⚠️ Google Drive requiere abrir el enlace <strong>↗ Drive</strong> en una pestaña (o compartir el archivo como "Cualquier persona con el enlace").</div>` : ''}
                 </div>`
               : `<div class="text-[11px] th-muted">Audio no disponible en este dispositivo</div>`)
