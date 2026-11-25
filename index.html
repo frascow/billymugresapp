@@ -44,6 +44,11 @@
       --string-stroke: #685b4c;
     }
 
+    html, body {
+      overflow-x: hidden;
+      max-width: 100%;
+    }
+
     body {
       background-color: var(--bg-page);
       color: var(--text-main);
@@ -68,19 +73,31 @@
     .chev { transition: transform 0.18s ease; }
 
     .cult-icon {
-      width: 21px;
-      height: 21px;
+      width: 20px;
+      height: 20px;
       transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
     }
-    button:hover .cult-icon { transform: scale(1.16) rotate(-5deg); }
+    button:hover .cult-icon { transform: scale(1.14) rotate(-4deg); }
 
     .chord-pill-big {
       background: var(--bg-chord);
       border: 2px solid var(--border-chord);
       border-radius: 14px;
-      padding: 0.7rem 0.75rem;
+      padding: 0.6rem 0.6rem;
+      min-width: 0;
+      overflow: hidden;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.16);
       transition: all 0.14s ease;
+    }
+    .chord-pill-big svg,
+    .struct-chord-card svg {
+      max-width: 100%;
+      height: auto;
+    }
+    @media (min-width: 640px) {
+      .chord-pill-big {
+        padding: 0.7rem 0.75rem;
+      }
     }
     .chord-pill-big:hover {
       border-color: var(--accent);
@@ -92,12 +109,20 @@
       background: var(--accent-soft) !important;
       border-color: var(--accent) !important;
       box-shadow: 0 0 0 3px rgba(229, 154, 60, 0.35);
-      transform: scale(1.04);
+      transform: scale(1.03);
     }
 
     .struct-card.active-sec {
       border-color: var(--accent) !important;
-      box-shadow: 0 0 0 2px rgba(229, 154, 60, 0.25);
+      box-shadow: 0 0 0 2px rgba(229, 154, 60, 0.3);
+    }
+
+    .scale-cell-playing {
+      background: #10b981 !important;
+      color: #0c0a09 !important;
+      border-color: #34d399 !important;
+      transform: scale(1.22);
+      box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.38);
     }
 
     body.light-mode .bulb-glow {
@@ -138,14 +163,14 @@
   </div>
 
   <!-- TOAST -->
-  <div id="toast-box" class="fixed bottom-4 right-4 z-50 hidden max-w-sm px-4 py-3 rounded-2xl shadow-xl border border-amber-500/40 bg-stone-900 text-amber-100 text-sm font-semibold"></div>
+  <div id="toast-box" class="fixed bottom-4 right-4 z-50 hidden max-w-[90vw] sm:max-w-sm px-4 py-3 rounded-2xl shadow-xl border border-amber-500/40 bg-stone-900 text-amber-100 text-sm font-semibold"></div>
 
   <!-- CABECERA -->
   <header class="sticky top-0 z-30 th-header backdrop-blur border-b shadow-lg">
     <div class="max-w-7xl mx-auto px-3 sm:px-4 py-2.5 flex flex-wrap items-center justify-between gap-2.5">
-      <div class="flex items-center gap-2.5">
-        <div class="w-10 h-10 rounded-2xl bg-amber-500 text-stone-950 flex items-center justify-center shadow-md shrink-0">
-          <svg class="w-6 h-6" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <div class="flex items-center gap-2.5 min-w-0 max-w-full">
+        <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-amber-500 text-stone-950 flex items-center justify-center shadow-md shrink-0">
+          <svg class="w-5 h-5 sm:w-6 sm:h-6" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="20" r="8" fill="#1c1610" stroke="#1c1610" />
             <circle cx="12" cy="20" r="5.5" stroke="#f59e0b" stroke-width="1.5" />
             <circle cx="12" cy="20" r="2" fill="#f59e0b" />
@@ -153,15 +178,15 @@
             <path d="M24 3l5 5M27 2l3 3" stroke-width="2" />
           </svg>
         </div>
-        <div>
-          <h1 class="font-serif-title font-bold text-sm sm:text-lg leading-tight">
+        <div class="min-w-0">
+          <h1 class="font-serif-title font-bold text-sm sm:text-lg leading-tight break-words">
             La Increíble Herramienta de los Billy Mugre's Cult
           </h1>
-          <div class="flex flex-wrap items-center gap-2 text-xs th-muted mt-0.5">
-            <span id="cloud-status-badge" class="inline-flex items-center gap-1.5 font-semibold text-emerald-500 bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded-full">
+          <div class="flex flex-wrap items-center gap-1.5 sm:gap-2 text-[11px] sm:text-xs th-muted mt-0.5">
+            <span id="cloud-status-badge" class="inline-flex items-center gap-1.5 font-semibold text-emerald-500 bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded-full whitespace-nowrap">
               <span class="w-2 h-2 rounded-full bg-emerald-400"></span> Drive Listo
             </span>
-            <button onclick="openUserModal()" class="inline-flex items-center gap-1 font-bold th-accent hover:underline">
+            <button type="button" onclick="openUserModal()" class="inline-flex items-center gap-1 font-bold th-accent hover:underline whitespace-nowrap">
               👤 <span id="active-user-lbl">Sin perfil</span>
             </button>
           </div>
@@ -169,8 +194,8 @@
       </div>
 
       <!-- Controles globales -->
-      <div class="flex flex-wrap items-center gap-1.5 sm:gap-2">
-        <select id="inst-select" onchange="onInstrumentChange()" class="th-input border rounded-xl px-2.5 py-2 text-xs sm:text-sm font-bold">
+      <div class="flex flex-wrap items-center gap-1.5 sm:gap-2 w-full sm:w-auto">
+        <select id="inst-select" onchange="onInstrumentChange()" class="th-input border rounded-xl px-2 sm:px-2.5 py-1.5 sm:py-2 text-xs sm:text-sm font-bold max-w-full">
           <option value="banjolele">🪕 Banjolele</option>
           <option value="guitar">🎸 Guitarra</option>
           <option value="banjo">🪕 Banjo 5c</option>
@@ -180,24 +205,24 @@
           <option value="bass">🎸 Bajo</option>
         </select>
 
-        <select id="tuning-select" onchange="onTuningChange()" class="th-input border rounded-xl px-2.5 py-2 text-xs sm:text-sm font-semibold"></select>
+        <select id="tuning-select" onchange="onTuningChange()" class="th-input border rounded-xl px-2 sm:px-2.5 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold max-w-full"></select>
 
-        <div class="flex items-center th-input border rounded-xl p-0.5 text-xs font-bold">
-          <button onclick="changeTranspose(-1)" class="px-2 py-1.5 rounded-lg hover:bg-amber-500/15">-1st</button>
-          <span id="transpose-lbl" class="px-2 font-mono-code th-accent">0 st</span>
-          <button onclick="changeTranspose(1)" class="px-2 py-1.5 rounded-lg hover:bg-amber-500/15">+1st</button>
+        <div class="flex items-center th-input border rounded-xl p-0.5 text-xs font-bold shrink-0">
+          <button type="button" onclick="changeTranspose(-1)" class="px-2 py-1 sm:py-1.5 rounded-lg hover:bg-amber-500/15">-1st</button>
+          <span id="transpose-lbl" class="px-1.5 sm:px-2 font-mono-code th-accent whitespace-nowrap">0 st</span>
+          <button type="button" onclick="changeTranspose(1)" class="px-2 py-1 sm:py-1.5 rounded-lg hover:bg-amber-500/15">+1st</button>
         </div>
 
-        <button id="btn-metronome-global" onclick="toggleMetronome()" class="th-input border hover:border-amber-500 text-xs sm:text-sm font-bold px-3 py-2 rounded-xl inline-flex items-center gap-1.5">
+        <button type="button" id="btn-metronome-global" onclick="toggleMetronome()" class="th-input border hover:border-amber-500 text-xs sm:text-sm font-bold px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl inline-flex items-center gap-1.5 whitespace-nowrap">
           <span id="metro-led" class="w-2.5 h-2.5 rounded-full bg-stone-500"></span>
           <span>⏱️ Metrónomo</span>
         </button>
 
-        <button onclick="openSongsModal()" class="th-input border hover:border-amber-500 text-xs sm:text-sm font-bold px-3 py-2 rounded-xl inline-flex items-center gap-1.5">
+        <button type="button" onclick="openSongsModal()" class="th-input border hover:border-amber-500 text-xs sm:text-sm font-bold px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl inline-flex items-center gap-1.5 whitespace-nowrap">
           📂 Canciones (<span id="songs-count-lbl">0</span>)
         </button>
 
-        <button onclick="printSongSheet()" class="bg-amber-500 hover:bg-amber-400 text-stone-950 text-xs sm:text-sm font-bold px-3 py-2 rounded-xl shadow-sm">
+        <button type="button" onclick="printSongSheet()" class="bg-amber-500 hover:bg-amber-400 text-stone-950 text-xs sm:text-sm font-bold px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl shadow-sm whitespace-nowrap">
           🖨️ Hoja PDF
         </button>
       </div>
@@ -213,66 +238,67 @@
 
     <!-- NAVEGACIÓN PRINCIPAL -->
     <nav class="th-nav border-t">
-      <div class="max-w-7xl mx-auto px-2 flex items-stretch">
-        <div class="grid grid-cols-6 flex-1">
-          <button onclick="switchTab('afinador')" data-tab="afinador" class="tab-btn py-2.5 px-1 flex flex-col sm:flex-row items-center justify-center gap-1.5 text-xs sm:text-sm font-semibold th-muted hover:text-amber-500">
-            <svg class="cult-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <div class="max-w-7xl mx-auto px-1 sm:px-2 flex items-stretch">
+        <div class="grid grid-cols-6 flex-1 min-w-0">
+          <button type="button" onclick="switchTab('afinador')" data-tab="afinador" class="tab-btn min-w-0 py-2 sm:py-2.5 px-0.5 sm:px-1 flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 text-[10px] sm:text-sm leading-tight tracking-tight sm:tracking-normal font-semibold th-muted hover:text-amber-500">
+            <svg class="cult-icon shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M9 3v8a3 3 0 0 0 6 0V3" />
               <line x1="12" y1="14" x2="12" y2="21" />
               <circle cx="12" cy="21" r="1.5" fill="currentColor" />
             </svg>
-            <span>Afinador</span>
+            <span class="truncate max-w-full">Afinador</span>
           </button>
 
-          <button onclick="switchTab('acordes')" data-tab="acordes" class="tab-btn py-2.5 px-1 flex flex-col sm:flex-row items-center justify-center gap-1.5 text-xs sm:text-sm font-bold th-accent border-b-2 border-amber-500 bg-amber-500/10">
-            <svg class="cult-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <button type="button" onclick="switchTab('acordes')" data-tab="acordes" class="tab-btn min-w-0 py-2 sm:py-2.5 px-0.5 sm:px-1 flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 text-[10px] sm:text-sm leading-tight tracking-tight sm:tracking-normal font-bold th-accent border-b-2 border-amber-500 bg-amber-500/10">
+            <svg class="cult-icon shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M18 11V4a1.5 1.5 0 0 0-3 0v5" />
               <path d="M9 10V3a1.5 1.5 0 0 0-3 0v9" />
               <path d="M6 12v3a6 6 0 0 0 12 0v-4" />
             </svg>
-            <span>Acordes</span>
+            <span class="truncate max-w-full">Acordes</span>
           </button>
 
-          <button onclick="switchTab('modos')" data-tab="modos" class="tab-btn py-2.5 px-1 flex flex-col sm:flex-row items-center justify-center gap-1.5 text-xs sm:text-sm font-semibold th-muted hover:text-amber-500">
-            <svg class="cult-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <button type="button" onclick="switchTab('modos')" data-tab="modos" class="tab-btn min-w-0 py-2 sm:py-2.5 px-0.5 sm:px-1 flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 text-[10px] sm:text-sm leading-tight tracking-tight sm:tracking-normal font-semibold th-muted hover:text-amber-500">
+            <svg class="cult-icon shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <polygon points="12 2 14.8 8.6 22 9.3 16.5 14 18.2 21 12 17.3 5.8 21 7.5 14 2 9.3 9.2 8.6 12 2" />
             </svg>
-            <span>Escalas</span>
+            <span class="truncate max-w-full">Escalas</span>
           </button>
 
-          <button onclick="switchTab('detector')" data-tab="detector" class="tab-btn py-2.5 px-1 flex flex-col sm:flex-row items-center justify-center gap-1.5 text-xs sm:text-sm font-semibold th-muted hover:text-amber-500">
-            <svg class="cult-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <button type="button" onclick="switchTab('detector')" data-tab="detector" class="tab-btn min-w-0 py-2 sm:py-2.5 px-0.5 sm:px-1 flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 text-[10px] sm:text-sm leading-tight tracking-tight sm:tracking-normal font-semibold th-muted hover:text-amber-500">
+            <svg class="cult-icon shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
               <circle cx="12" cy="12" r="3" fill="currentColor" />
             </svg>
-            <span>Detector</span>
+            <span class="truncate max-w-full">Detector</span>
           </button>
 
-          <button onclick="switchTab('componer')" data-tab="componer" class="tab-btn py-2.5 px-1 flex flex-col sm:flex-row items-center justify-center gap-1.5 text-xs sm:text-sm font-semibold th-muted hover:text-amber-500">
-            <svg class="cult-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <button type="button" onclick="switchTab('componer')" data-tab="componer" class="tab-btn min-w-0 py-2 sm:py-2.5 px-0.5 sm:px-1 flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 text-[10px] sm:text-sm leading-tight tracking-tight sm:tracking-normal font-semibold th-muted hover:text-amber-500">
+            <svg class="cult-icon shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z" />
               <line x1="16" y1="8" x2="2" y2="22" />
             </svg>
-            <span>Componer</span>
+            <span class="truncate max-w-full">Componer</span>
           </button>
 
-          <button onclick="switchTab('canciones')" data-tab="canciones" class="tab-btn py-2.5 px-1 flex flex-col sm:flex-row items-center justify-center gap-1.5 text-xs sm:text-sm font-semibold th-muted hover:text-amber-500">
-            <svg class="cult-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <button type="button" onclick="switchTab('canciones')" data-tab="canciones" class="tab-btn min-w-0 py-2 sm:py-2.5 px-0.5 sm:px-1 flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 text-[10px] sm:text-sm leading-tight tracking-tight sm:tracking-normal font-semibold th-muted hover:text-amber-500">
+            <svg class="cult-icon shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
             </svg>
-            <span>Canciones</span>
+            <span class="truncate max-w-full">Canciones</span>
           </button>
         </div>
 
         <!-- BOMBILLA UI LIGHT / DARK -->
-        <div class="flex items-center pl-2 pr-1 border-l" style="border-color: var(--border-main);">
+        <div class="flex items-center pl-1.5 sm:pl-2 pr-0.5 sm:pr-1 border-l shrink-0" style="border-color: var(--border-main);">
           <button
+            type="button"
             id="theme-bulb-btn"
             onclick="toggleThemeMode()"
             title="Cambiar entre UI Dark y UI Light"
-            class="th-input border p-2 rounded-xl flex items-center justify-center hover:border-amber-500 transition-transform hover:scale-105"
+            class="th-input border p-1.5 sm:p-2 rounded-xl flex items-center justify-center hover:border-amber-500 transition-transform hover:scale-105"
           >
-            <svg id="bulb-svg" class="w-5 h-5 bulb-glow th-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <svg id="bulb-svg" class="w-4 h-4 sm:w-5 sm:h-5 bulb-glow th-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M9 18h6" />
               <path d="M10 22h4" />
               <path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14" />
@@ -294,59 +320,59 @@
     <div id="tab-componer" class="tab-panel hidden space-y-5">
 
       <!-- BARRA SUPERIOR DE CANCIÓN -->
-      <section class="th-card border rounded-2xl p-4 sm:p-5 shadow-md space-y-3">
+      <section class="th-card border rounded-2xl p-3.5 sm:p-5 shadow-md space-y-3">
         <div class="flex flex-wrap items-center justify-between gap-2.5 pb-3 border-b" style="border-color: var(--border-main);">
-          <div class="flex flex-wrap items-center gap-2 flex-1 min-w-[240px]">
+          <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto sm:flex-1 min-w-0">
             <input
               id="song-title-input"
               type="text"
               oninput="onSongTitleChange()"
               placeholder="Título de la canción..."
-              class="font-serif-title text-lg sm:text-2xl font-bold th-input border rounded-xl px-3.5 py-2 flex-1 focus:outline-none focus:border-amber-500"
+              class="font-serif-title text-base sm:text-2xl font-bold th-input border rounded-xl px-3.5 py-2 w-full sm:flex-1 min-w-0 focus:outline-none focus:border-amber-500"
             />
-            <select id="song-folder-select" onchange="onSongFolderChange()" class="th-input border rounded-xl px-3 py-2.5 text-xs sm:text-sm font-semibold">
+            <select id="song-folder-select" onchange="onSongFolderChange()" class="th-input border rounded-xl px-3 py-2 sm:py-2.5 text-xs sm:text-sm font-semibold w-full sm:w-auto max-w-full">
               <option value="Setlist Próximo Bolo">🎤 Setlist Próximo Bolo</option>
               <option value="Repertorio Activo">📂 Repertorio Activo</option>
               <option value="Bocetos / Ideas">💡 Bocetos / Ideas</option>
             </select>
           </div>
 
-          <div class="flex flex-wrap items-center gap-2">
-            <span id="lock-badge" class="text-xs font-semibold text-emerald-500 bg-emerald-500/10 border border-emerald-500/30 px-3 py-2 rounded-xl">🔓 Editando</span>
-            <button id="btn-force-unlock" onclick="forceUnlockCurrentSong()" class="hidden th-input border border-amber-500 th-accent text-xs font-bold px-3 py-2 rounded-xl">🔓 Desbloquear</button>
+          <div class="flex flex-wrap items-center gap-1.5 sm:gap-2 w-full sm:w-auto">
+            <span id="lock-badge" class="text-xs font-semibold text-emerald-500 bg-emerald-500/10 border border-emerald-500/30 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl">🔓 Editando</span>
+            <button type="button" id="btn-force-unlock" onclick="forceUnlockCurrentSong()" class="hidden th-input border border-amber-500 th-accent text-xs font-bold px-3 py-2 rounded-xl">🔓 Desbloquear</button>
             <div class="inline-flex items-center th-input border rounded-xl p-0.5 text-xs font-bold">
               <button id="btn-undo" type="button" onclick="undoSongChange()" disabled title="Deshacer (Ctrl+Z)" class="px-2.5 py-1.5 rounded-lg hover:bg-amber-500/15 disabled:opacity-35">↶</button>
               <button id="btn-redo" type="button" onclick="redoSongChange()" disabled title="Rehacer (Ctrl+Y)" class="px-2.5 py-1.5 rounded-lg hover:bg-amber-500/15 disabled:opacity-35">↷</button>
             </div>
-            <button onclick="saveCurrentProject(true, true)" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-bold px-4 py-2 rounded-xl shadow-sm">💾 Guardar en Nube</button>
-            <button onclick="createNewSong()" class="th-input border hover:border-amber-500 text-xs sm:text-sm font-semibold px-3.5 py-2 rounded-xl">✨ Tema Nuevo</button>
+            <button type="button" onclick="saveCurrentProject(true, true)" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-bold px-3.5 sm:px-4 py-2 rounded-xl shadow-sm">💾 Guardar en Nube</button>
+            <button type="button" onclick="createNewSong()" class="th-input border hover:border-amber-500 text-xs sm:text-sm font-semibold px-3 sm:px-3.5 py-2 rounded-xl">✨ Tema Nuevo</button>
           </div>
         </div>
 
         <div class="flex flex-wrap items-center justify-between gap-2 text-xs sm:text-sm">
-          <div class="flex flex-wrap items-center gap-2.5">
+          <div class="flex flex-wrap items-center gap-2">
             <span id="key-badge" class="font-bold th-accent bg-amber-500/15 border border-amber-500/35 px-3 py-1 rounded-lg">🎯 Tónica: D • Dominante: A</span>
-            <span id="scales-hint" class="th-muted">Escalas sugeridas: <strong>D Mayor / Mixolidio</strong></span>
+            <span id="scales-hint" class="th-muted break-words">Escalas sugeridas: <strong>D Mayor / Mixolidio</strong></span>
           </div>
           <div class="flex items-center gap-1.5">
-            <button onclick="adjustGlobalTempo(-5)" class="th-input border px-2 py-1 rounded-lg text-xs font-bold">-5 BPM</button>
+            <button type="button" onclick="adjustGlobalTempo(-5)" class="th-input border px-2 py-1 rounded-lg text-xs font-bold">-5 BPM</button>
             <span id="global-bpm-lbl" class="font-mono-code font-bold th-accent px-1.5">112 BPM</span>
-            <button onclick="adjustGlobalTempo(5)" class="th-input border px-2 py-1 rounded-lg text-xs font-bold">+5 BPM</button>
+            <button type="button" onclick="adjustGlobalTempo(5)" class="th-input border px-2 py-1 rounded-lg text-xs font-bold">+5 BPM</button>
           </div>
         </div>
       </section>
 
       <!-- 1. RUEDA BASE (COMPOSITOR) -->
-      <section class="th-card border rounded-2xl p-4 sm:p-5 shadow-md space-y-4">
+      <section class="th-card border rounded-2xl p-3.5 sm:p-5 shadow-md space-y-4">
         <div class="flex flex-wrap items-center justify-between gap-2">
           <div>
             <span class="text-xs font-mono-code uppercase tracking-wider th-accent font-bold">Paso 1 • Compositor</span>
             <h2 class="font-serif-title text-xl font-bold">Rueda Base de Acordes</h2>
           </div>
-          <div class="flex flex-wrap items-center gap-2">
-            <select id="base-quick-chord-select" onchange="appendQuickChordFromSelect(this)" class="th-input border rounded-xl px-3 py-2 text-xs sm:text-sm font-bold th-accent"></select>
-            <button onclick="insertSilenceToBase()" class="th-input border hover:border-amber-500 text-xs sm:text-sm font-bold px-3 py-2 rounded-xl">+ 🔇 NC</button>
-            <button id="btn-play-base" onclick="togglePlayBase()" class="bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold px-4 py-2 rounded-xl shadow-sm text-xs sm:text-sm">▶ Escuchar Rueda</button>
+          <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+            <select id="base-quick-chord-select" onchange="appendQuickChordFromSelect(this)" class="th-input border rounded-xl px-3 py-2 text-xs sm:text-sm font-bold th-accent max-w-full"></select>
+            <button type="button" onclick="insertSilenceToBase()" class="th-input border hover:border-amber-500 text-xs sm:text-sm font-bold px-3 py-2 rounded-xl">+ 🔇 NC</button>
+            <button type="button" id="btn-play-base" onclick="togglePlayBase()" class="bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold px-4 py-2 rounded-xl shadow-sm text-xs sm:text-sm">▶ Escuchar Rueda</button>
           </div>
         </div>
 
@@ -398,15 +424,15 @@
             class="sm:col-span-2 th-input border rounded-xl px-2.5 py-2.5 text-sm font-bold text-center"
           />
         </div>
-        <div id="base-style-desc" class="text-xs font-mono-code th-muted bg-amber-500/5 border border-amber-500/20 rounded-xl px-3 py-1.5 flex items-center justify-between gap-2">
-          <span>Patrón: <strong class="th-accent">1 (Bajo) • 2 (Rasgueo) • 3 (Bajo) • 4 (Rasgueo)</strong></span>
+        <div id="base-style-desc" class="text-xs font-mono-code th-muted bg-amber-500/5 border border-amber-500/20 rounded-xl px-3 py-1.5 flex flex-wrap items-center justify-between gap-2">
+          <span class="min-w-0 break-words">Patrón: <strong class="th-accent">1 (Bajo) • 2 (Rasgueo) • 3 (Bajo) • 4 (Rasgueo)</strong></span>
           <button type="button" onclick="previewCurrentStylePattern()" class="th-accent font-bold hover:underline shrink-0">🔊 Probar patrón</button>
         </div>
 
-        <div id="base-chords-grid" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3"></div>
+        <div id="base-chords-grid" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-2 sm:gap-3"></div>
 
         <div class="flex flex-wrap items-center gap-2 pt-2 border-t" style="border-color: var(--border-main);">
-          <select id="base-role-select" class="th-input border rounded-xl px-3 py-2.5 text-sm font-bold">
+          <select id="base-role-select" class="th-input border rounded-xl px-3 py-2.5 text-sm font-bold w-full sm:w-auto">
             <option value="Estrofa">Estrofa</option>
             <option value="Estribillo">Estribillo</option>
             <option value="Puente">Puente</option>
@@ -414,52 +440,81 @@
             <option value="Solo">Solo</option>
             <option value="Outro">Outro</option>
           </select>
-          <button onclick="addBaseToStructure()" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 px-4 rounded-xl shadow-sm text-sm">+ Añadir a Estructura ↓</button>
-          <button onclick="addBreakSectionToStructure()" class="th-input border hover:border-amber-500 font-bold py-2.5 px-3.5 rounded-xl text-sm">+ 🔇 Corte</button>
-          <button onclick="saveBaseToBank()" class="th-input border hover:border-amber-500 font-bold py-2.5 px-3.5 rounded-xl text-sm">★ Guardar en Banco</button>
+          <button type="button" onclick="addBaseToStructure()" class="flex-1 min-w-[180px] bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 px-4 rounded-xl shadow-sm text-sm">+ Añadir a Estructura ↓</button>
+          <button type="button" onclick="addBreakSectionToStructure()" class="th-input border hover:border-amber-500 font-bold py-2.5 px-3.5 rounded-xl text-sm">+ 🔇 Corte</button>
+          <button type="button" onclick="saveBaseToBank()" class="th-input border hover:border-amber-500 font-bold py-2.5 px-3.5 rounded-xl text-sm">★ Guardar en Banco</button>
         </div>
       </section>
 
-      <!-- 2. ESTRUCTURA Y KARAOKE (SIEMPRE DEBAJO DEL COMPOSITOR) -->
-      <section class="th-card border rounded-2xl p-4 sm:p-5 shadow-md space-y-4">
-        <div class="flex flex-wrap items-center justify-between gap-2">
+      <!-- 2. ESTRUCTURA Y KARAOKE -->
+      <section class="th-card border rounded-2xl p-3.5 sm:p-5 shadow-md space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-2.5">
           <div>
             <span class="text-xs font-mono-code uppercase tracking-wider text-emerald-500 font-bold">Paso 2 • Estructura &amp; Karaoke</span>
             <h2 class="font-serif-title text-xl font-bold">Mapa de la Canción</h2>
           </div>
-          <button id="btn-play-all" onclick="togglePlayAllStructure(-1)" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-2.5 rounded-xl shadow-sm text-sm">▶ Tocar Todo (Karaoke)</button>
+          <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+            <div class="inline-flex items-center th-input border rounded-xl p-0.5 text-xs font-bold max-w-full" title="Ajustar BPM de todas las secciones">
+              <button type="button" onclick="adjustAllSectionsTempo(-5)" class="px-1.5 sm:px-2 py-1.5 rounded-lg hover:bg-amber-500/15">-5</button>
+              <button type="button" onclick="adjustAllSectionsTempo(-1)" class="px-1.5 sm:px-2 py-1.5 rounded-lg hover:bg-amber-500/15">-1</button>
+              <input
+                id="struct-bpm-input"
+                type="number"
+                min="40"
+                max="260"
+                value="112"
+                onchange="setAllSectionsTempo(this.value)"
+                class="w-12 sm:w-14 bg-transparent text-center font-mono-code font-extrabold th-accent focus:outline-none"
+                title="BPM maestro para todas las secciones"
+              />
+              <span class="text-[10px] font-mono-code th-muted pr-1">BPM</span>
+              <button type="button" onclick="adjustAllSectionsTempo(1)" class="px-1.5 sm:px-2 py-1.5 rounded-lg hover:bg-amber-500/15">+1</button>
+              <button type="button" onclick="adjustAllSectionsTempo(5)" class="px-1.5 sm:px-2 py-1.5 rounded-lg hover:bg-amber-500/15">+5</button>
+            </div>
+            <button
+              id="btn-struct-metro"
+              type="button"
+              onclick="toggleStructureMetronomeClick()"
+              title="Activar clic de metrónomo en todas las secciones al reproducir"
+              class="th-input border hover:border-amber-500 text-xs sm:text-sm font-bold px-3 py-2 rounded-xl inline-flex items-center gap-1.5"
+            >
+              <span id="struct-metro-dot" class="w-2 h-2 rounded-full bg-stone-500"></span>
+              <span>⏱️ Clic: OFF</span>
+            </button>
+            <button type="button" id="btn-play-all" onclick="togglePlayAllStructure(-1)" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-2.5 rounded-xl shadow-sm text-xs sm:text-sm">▶ Tocar Todo (Karaoke)</button>
+          </div>
         </div>
 
         <!-- Monitor Atril Karaoke -->
-        <div class="th-subcard border-2 border-amber-500/50 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-4">
-          <div class="space-y-1">
-            <div id="atril-sec-lbl" class="text-xs font-mono-code font-bold th-accent uppercase">LISTO PARA TOCAR</div>
-            <div id="atril-meta-lbl" class="text-xs th-muted">Pulsa ▶ Tocar Todo para seguir los acordes en modo karaoke</div>
+        <div class="th-subcard border-2 border-amber-500/50 rounded-2xl p-3.5 sm:p-4 flex flex-wrap items-center justify-between gap-3 sm:gap-4">
+          <div class="space-y-1 min-w-0 flex-1">
+            <div id="atril-sec-lbl" class="text-xs font-mono-code font-bold th-accent uppercase break-words">LISTO PARA TOCAR</div>
+            <div id="atril-meta-lbl" class="text-xs th-muted break-words">Pulsa ▶ Tocar Todo para seguir los acordes en modo karaoke</div>
           </div>
-          <div class="flex items-center gap-4">
+          <div class="flex items-center gap-3 sm:gap-4 shrink-0">
             <div class="text-center">
-              <div id="atril-chord-big" class="font-serif-title text-5xl font-extrabold th-accent">--</div>
+              <div id="atril-chord-big" class="font-serif-title text-3xl sm:text-5xl font-extrabold th-accent">--</div>
               <div class="text-xs th-muted">Siguiente: <strong id="atril-next-lbl">--</strong></div>
             </div>
-            <div id="atril-diagram-box" class="min-w-[76px]"></div>
+            <div id="atril-diagram-box" class="min-w-[68px] sm:min-w-[76px]"></div>
           </div>
         </div>
 
         <div id="structure-list" class="space-y-3"></div>
       </section>
 
-      <!-- 3. GRABADORA DE TOMAS EN LA MISMA PÁGINA CON VISTA DE ESTRUCTURA -->
-      <section class="th-card border rounded-2xl p-4 sm:p-5 shadow-md space-y-4">
+      <!-- 3. GRABADORA DE TOMAS CON OSCILÓMETRO, INDEXEDDB Y DRIVE -->
+      <section class="th-card border rounded-2xl p-3.5 sm:p-5 shadow-md space-y-4">
         <div class="flex flex-wrap items-center justify-between gap-2">
           <div>
             <span class="text-xs font-mono-code uppercase tracking-wider text-rose-400 font-bold">Paso 3 • Estudio de Tomas</span>
             <h2 class="font-serif-title text-xl font-bold">Grabar Toma mirando la Estructura (<span id="takes-count-lbl">0</span>)</h2>
           </div>
-          <div class="flex flex-wrap items-center gap-2">
+          <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
             <span id="rec-timer" class="font-mono-code font-bold text-sm px-3 py-1.5 rounded-xl th-subcard border th-accent">00:00</span>
-            <button id="btn-rec-start" onclick="startMicRecording(false)" class="bg-rose-600 hover:bg-rose-500 text-white font-bold px-3.5 py-2 rounded-xl text-xs sm:text-sm">● Grabar Solo Mic</button>
-            <button id="btn-rec-karaoke" onclick="startMicRecording(true)" class="bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold px-3.5 py-2 rounded-xl text-xs sm:text-sm">●▶ Grabar + Play Karaoke</button>
-            <button id="btn-rec-stop" onclick="stopMicRecording()" disabled class="th-input border px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold disabled:opacity-40">■ Parar</button>
+            <button type="button" id="btn-rec-start" onclick="startMicRecording(false)" class="bg-rose-600 hover:bg-rose-500 text-white font-bold px-3.5 py-2 rounded-xl text-xs sm:text-sm">● Grabar Solo Mic</button>
+            <button type="button" id="btn-rec-karaoke" onclick="startMicRecording(true)" class="bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold px-3.5 py-2 rounded-xl text-xs sm:text-sm">●▶ Grabar + Play Karaoke</button>
+            <button type="button" id="btn-rec-stop" onclick="stopMicRecording()" disabled class="th-input border px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold disabled:opacity-40">■ Parar</button>
             <label class="th-input border hover:border-amber-500 font-bold px-3.5 py-2 rounded-xl text-xs sm:text-sm cursor-pointer inline-flex items-center gap-1.5">
               <span>📁 Subir Audio</span>
               <input type="file" accept="audio/*,.mp3,.wav,.m4a,.ogg,.webm" multiple onchange="handleUploadTakes(event)" class="hidden" />
@@ -468,26 +523,28 @@
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
-          <div class="lg:col-span-7 th-subcard border rounded-2xl p-3.5 space-y-2.5 max-h-72 overflow-y-auto">
+          <div class="lg:col-span-6 th-subcard border rounded-2xl p-3.5 space-y-2.5 max-h-80 overflow-y-auto">
             <div class="text-xs font-bold uppercase th-muted">Teleprompter de Estructura Completa</div>
             <div id="rec-structure-guide" class="space-y-2"></div>
           </div>
-          <div class="lg:col-span-5 th-subcard border rounded-2xl p-3.5 space-y-3">
-            <div class="flex items-center justify-between text-xs">
-              <span id="rec-status-msg" class="font-bold th-muted">Listo para grabar micrófono</span>
+          <div class="lg:col-span-6 th-subcard border rounded-2xl p-3.5 space-y-3">
+            <div class="flex items-center justify-between text-xs gap-2">
+              <span id="rec-status-msg" class="font-bold th-muted truncate">Listo para grabar micrófono</span>
+              <span id="rec-level-lbl" class="font-mono-code font-bold th-accent shrink-0">0%</span>
             </div>
+            <canvas id="rec-oscilloscope" class="w-full h-20 rounded-xl border border-stone-800 bg-black/25 block"></canvas>
             <div class="w-full h-2 rounded-full bg-stone-800 overflow-hidden">
-              <div id="rec-meter-fill" class="h-full bg-rose-500 transition-all duration-150" style="width: 0%"></div>
+              <div id="rec-meter-fill" class="h-full bg-rose-500 transition-all duration-100" style="width: 0%"></div>
             </div>
-            <div id="song-takes-list" class="space-y-2 max-h-52 overflow-y-auto"></div>
+            <div id="song-takes-list" class="space-y-2 max-h-56 overflow-y-auto"></div>
           </div>
         </div>
       </section>
 
-      <!-- 4. IDEAS E INSPIRACIÓN + 5. BANCO DE BLOQUES (DESPLEGABLES AL FINAL) -->
+      <!-- 4. IDEAS E INSPIRACIÓN + 5. BANCO DE BLOQUES -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <details class="th-card border rounded-2xl shadow-md overflow-hidden" open>
-          <summary class="px-5 py-4 flex items-center justify-between hover:bg-amber-500/5">
+          <summary class="px-4 sm:px-5 py-4 flex items-center justify-between hover:bg-amber-500/5">
             <div>
               <h3 class="font-serif-title font-bold text-base">💡 Inspiración e Ideas de Progresiones</h3>
               <p class="text-xs th-muted">Adaptadas automáticamente a tu tónica actual</p>
@@ -497,19 +554,19 @@
           <div class="px-4 pb-4 pt-3 border-t space-y-3 th-subcard" style="border-color: var(--border-main);">
             <div class="flex flex-wrap items-center justify-between gap-1.5">
               <div id="insp-filters" class="flex flex-wrap gap-1.5">
-                <button data-role="all" onclick="setInspFilter('all')" class="px-3 py-1.5 rounded-lg bg-amber-500 text-stone-950 text-xs font-bold">Todos</button>
-                <button data-role="Estribillo" onclick="setInspFilter('Estribillo')" class="px-3 py-1.5 rounded-lg th-input border text-xs font-bold">Estribillo</button>
-                <button data-role="Puente" onclick="setInspFilter('Puente')" class="px-3 py-1.5 rounded-lg th-input border text-xs font-bold">Puente</button>
-                <button data-role="Estrofa" onclick="setInspFilter('Estrofa')" class="px-3 py-1.5 rounded-lg th-input border text-xs font-bold">Estrofa</button>
+                <button type="button" data-role="all" onclick="setInspFilter('all')" class="px-3 py-1.5 rounded-lg bg-amber-500 text-stone-950 text-xs font-bold">Todos</button>
+                <button type="button" data-role="Estribillo" onclick="setInspFilter('Estribillo')" class="px-3 py-1.5 rounded-lg th-input border text-xs font-bold">Estribillo</button>
+                <button type="button" data-role="Puente" onclick="setInspFilter('Puente')" class="px-3 py-1.5 rounded-lg th-input border text-xs font-bold">Puente</button>
+                <button type="button" data-role="Estrofa" onclick="setInspFilter('Estrofa')" class="px-3 py-1.5 rounded-lg th-input border text-xs font-bold">Estrofa</button>
               </div>
-              <button onclick="regenerateInspirationBatch()" class="px-2.5 py-1.5 rounded-lg th-input border th-accent text-xs font-bold">↻ Mezclar</button>
+              <button type="button" onclick="regenerateInspirationBatch()" class="px-2.5 py-1.5 rounded-lg th-input border th-accent text-xs font-bold">↻ Mezclar</button>
             </div>
             <div id="insp-list" class="space-y-2 max-h-72 overflow-y-auto"></div>
           </div>
         </details>
 
         <details class="th-card border rounded-2xl shadow-md overflow-hidden" open>
-          <summary class="px-5 py-4 flex items-center justify-between hover:bg-amber-500/5">
+          <summary class="px-4 sm:px-5 py-4 flex items-center justify-between hover:bg-amber-500/5">
             <div>
               <h3 class="font-serif-title font-bold text-base">★ Banco de Bloques Guardados (<span id="bank-count-lbl">0</span>)</h3>
               <p class="text-xs th-muted">Vueltas y riffs listos para insertar en la estructura</p>
@@ -527,22 +584,22 @@
     <!-- PESTAÑA 2: CANCIONES Y CARPETAS                                     -->
     <!-- =================================================================== -->
     <div id="tab-canciones" class="tab-panel hidden space-y-4">
-      <section class="th-card border rounded-2xl p-4 sm:p-5 shadow-md space-y-4">
+      <section class="th-card border rounded-2xl p-3.5 sm:p-5 shadow-md space-y-4">
         <div class="flex flex-wrap items-center justify-between gap-2.5">
           <div>
             <h2 class="font-serif-title text-xl font-bold">Canciones y Carpetas del Culto</h2>
             <p class="text-xs th-muted">Organiza el setlist del próximo bolo, el repertorio activo y los bocetos</p>
           </div>
-          <div class="flex flex-wrap items-center gap-2">
+          <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
             <input
               id="songs-page-search"
               type="text"
               oninput="renderSongsFoldersPage()"
               placeholder="Buscar canción..."
-              class="th-input border rounded-xl px-3 py-2 text-xs sm:text-sm"
+              class="th-input border rounded-xl px-3 py-2 text-xs sm:text-sm w-full sm:w-auto"
             />
-            <button onclick="syncProjectsFromCloud(true)" class="bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold px-3.5 py-2 rounded-xl text-xs sm:text-sm">↻ Sincronizar Drive</button>
-            <button onclick="createNewSong(); switchTab('componer');" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3.5 py-2 rounded-xl text-xs sm:text-sm">✨ Nueva Canción</button>
+            <button type="button" onclick="syncProjectsFromCloud(true)" class="bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold px-3.5 py-2 rounded-xl text-xs sm:text-sm">↻ Sincronizar Drive</button>
+            <button type="button" onclick="createNewSong(); switchTab('componer');" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3.5 py-2 rounded-xl text-xs sm:text-sm">✨ Nueva Canción</button>
           </div>
         </div>
         <div id="songs-folders-container" class="space-y-4"></div>
@@ -553,7 +610,7 @@
     <!-- PESTAÑA 3: DICCIONARIO DE ACORDES (POR DEFECTO AL ARRANCAR)           -->
     <!-- =================================================================== -->
     <div id="tab-acordes" class="tab-panel space-y-4">
-      <section class="th-card border rounded-2xl p-4 sm:p-5 shadow-md space-y-4">
+      <section class="th-card border rounded-2xl p-3.5 sm:p-5 shadow-md space-y-4">
         <div class="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h2 class="font-serif-title text-xl font-bold">Diccionario Completo de Acordes</h2>
@@ -563,50 +620,53 @@
         </div>
         <div id="dict-root-btns" class="flex flex-wrap gap-1.5"></div>
         <div id="dict-type-btns" class="flex flex-wrap gap-1.5">
-          <button data-type="all" onclick="setDictType('all')" class="px-3 py-1.5 rounded-lg bg-amber-500 text-stone-950 text-xs font-bold">Todos</button>
-          <button data-type="maj" onclick="setDictType('maj')" class="px-3 py-1.5 rounded-lg th-input border text-xs font-bold">Mayor</button>
-          <button data-type="m" onclick="setDictType('m')" class="px-3 py-1.5 rounded-lg th-input border text-xs font-bold">Menor</button>
-          <button data-type="5" onclick="setDictType('5')" class="px-3 py-1.5 rounded-lg th-input border text-xs font-bold">5</button>
-          <button data-type="7" onclick="setDictType('7')" class="px-3 py-1.5 rounded-lg th-input border text-xs font-bold">7</button>
-          <button data-type="maj7" onclick="setDictType('maj7')" class="px-3 py-1.5 rounded-lg th-input border text-xs font-bold">maj7</button>
-          <button data-type="m7" onclick="setDictType('m7')" class="px-3 py-1.5 rounded-lg th-input border text-xs font-bold">m7</button>
-          <button data-type="m(maj7)" onclick="setDictType('m(maj7)')" class="px-3 py-1.5 rounded-lg th-input border text-xs font-bold">m(maj7)</button>
-          <button data-type="6" onclick="setDictType('6')" class="px-3 py-1.5 rounded-lg th-input border text-xs font-bold">6</button>
-          <button data-type="m6" onclick="setDictType('m6')" class="px-3 py-1.5 rounded-lg th-input border text-xs font-bold">m6</button>
-          <button data-type="9" onclick="setDictType('9')" class="px-3 py-1.5 rounded-lg th-input border text-xs font-bold">9</button>
-          <button data-type="maj9" onclick="setDictType('maj9')" class="px-3 py-1.5 rounded-lg th-input border text-xs font-bold">maj9</button>
-          <button data-type="m9" onclick="setDictType('m9')" class="px-3 py-1.5 rounded-lg th-input border text-xs font-bold">m9</button>
-          <button data-type="add9" onclick="setDictType('add9')" class="px-3 py-1.5 rounded-lg th-input border text-xs font-bold">add9</button>
-          <button data-type="sus4" onclick="setDictType('sus4')" class="px-3 py-1.5 rounded-lg th-input border text-xs font-bold">sus4</button>
-          <button data-type="7sus4" onclick="setDictType('7sus4')" class="px-3 py-1.5 rounded-lg th-input border text-xs font-bold">7sus4</button>
-          <button data-type="sus2" onclick="setDictType('sus2')" class="px-3 py-1.5 rounded-lg th-input border text-xs font-bold">sus2</button>
-          <button data-type="dim" onclick="setDictType('dim')" class="px-3 py-1.5 rounded-lg th-input border text-xs font-bold">dim</button>
-          <button data-type="dim7" onclick="setDictType('dim7')" class="px-3 py-1.5 rounded-lg th-input border text-xs font-bold">dim7</button>
-          <button data-type="m7b5" onclick="setDictType('m7b5')" class="px-3 py-1.5 rounded-lg th-input border text-xs font-bold">m7b5</button>
-          <button data-type="aug" onclick="setDictType('aug')" class="px-3 py-1.5 rounded-lg th-input border text-xs font-bold">aug</button>
-          <button data-type="aug7" onclick="setDictType('aug7')" class="px-3 py-1.5 rounded-lg th-input border text-xs font-bold">aug7</button>
-          <button data-type="13" onclick="setDictType('13')" class="px-3 py-1.5 rounded-lg th-input border text-xs font-bold">13</button>
+          <button type="button" data-type="all" onclick="setDictType('all')" class="px-3 py-1.5 rounded-lg bg-amber-500 text-stone-950 text-xs font-bold">Todos</button>
+          <button type="button" data-type="maj" onclick="setDictType('maj')" class="px-3 py-1.5 rounded-lg th-input border text-xs font-bold">Mayor</button>
+          <button type="button" data-type="m" onclick="setDictType('m')" class="px-3 py-1.5 rounded-lg th-input border text-xs font-bold">Menor</button>
+          <button type="button" data-type="5" onclick="setDictType('5')" class="px-3 py-1.5 rounded-lg th-input border text-xs font-bold">5</button>
+          <button type="button" data-type="7" onclick="setDictType('7')" class="px-3 py-1.5 rounded-lg th-input border text-xs font-bold">7</button>
+          <button type="button" data-type="maj7" onclick="setDictType('maj7')" class="px-3 py-1.5 rounded-lg th-input border text-xs font-bold">maj7</button>
+          <button type="button" data-type="m7" onclick="setDictType('m7')" class="px-3 py-1.5 rounded-lg th-input border text-xs font-bold">m7</button>
+          <button type="button" data-type="m(maj7)" onclick="setDictType('m(maj7)')" class="px-3 py-1.5 rounded-lg th-input border text-xs font-bold">m(maj7)</button>
+          <button type="button" data-type="6" onclick="setDictType('6')" class="px-3 py-1.5 rounded-lg th-input border text-xs font-bold">6</button>
+          <button type="button" data-type="m6" onclick="setDictType('m6')" class="px-3 py-1.5 rounded-lg th-input border text-xs font-bold">m6</button>
+          <button type="button" data-type="9" onclick="setDictType('9')" class="px-3 py-1.5 rounded-lg th-input border text-xs font-bold">9</button>
+          <button type="button" data-type="maj9" onclick="setDictType('maj9')" class="px-3 py-1.5 rounded-lg th-input border text-xs font-bold">maj9</button>
+          <button type="button" data-type="m9" onclick="setDictType('m9')" class="px-3 py-1.5 rounded-lg th-input border text-xs font-bold">m9</button>
+          <button type="button" data-type="add9" onclick="setDictType('add9')" class="px-3 py-1.5 rounded-lg th-input border text-xs font-bold">add9</button>
+          <button type="button" data-type="sus4" onclick="setDictType('sus4')" class="px-3 py-1.5 rounded-lg th-input border text-xs font-bold">sus4</button>
+          <button type="button" data-type="7sus4" onclick="setDictType('7sus4')" class="px-3 py-1.5 rounded-lg th-input border text-xs font-bold">7sus4</button>
+          <button type="button" data-type="sus2" onclick="setDictType('sus2')" class="px-3 py-1.5 rounded-lg th-input border text-xs font-bold">sus2</button>
+          <button type="button" data-type="dim" onclick="setDictType('dim')" class="px-3 py-1.5 rounded-lg th-input border text-xs font-bold">dim</button>
+          <button type="button" data-type="dim7" onclick="setDictType('dim7')" class="px-3 py-1.5 rounded-lg th-input border text-xs font-bold">dim7</button>
+          <button type="button" data-type="m7b5" onclick="setDictType('m7b5')" class="px-3 py-1.5 rounded-lg th-input border text-xs font-bold">m7b5</button>
+          <button type="button" data-type="aug" onclick="setDictType('aug')" class="px-3 py-1.5 rounded-lg th-input border text-xs font-bold">aug</button>
+          <button type="button" data-type="aug7" onclick="setDictType('aug7')" class="px-3 py-1.5 rounded-lg th-input border text-xs font-bold">aug7</button>
+          <button type="button" data-type="13" onclick="setDictType('13')" class="px-3 py-1.5 rounded-lg th-input border text-xs font-bold">13</button>
         </div>
-        <div id="dict-grid" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3"></div>
+        <div id="dict-grid" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-2 sm:gap-3"></div>
       </section>
     </div>
 
     <!-- =================================================================== -->
-    <!-- PESTAÑA 4: DETECTOR DE MÁSTIL                                       -->
+    <!-- PESTAÑA 4: DETECTOR DE MÁSTIL (LOOK UNIFICADO CON ESCALAS)          -->
     <!-- =================================================================== -->
     <div id="tab-detector" class="tab-panel hidden space-y-4">
-      <section class="th-card border rounded-2xl p-4 sm:p-5 shadow-md space-y-4">
-        <div class="flex flex-wrap items-center justify-between gap-3">
+      <section class="th-card border rounded-2xl p-3.5 sm:p-5 shadow-md space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-2.5">
           <div>
             <h2 class="font-serif-title text-xl font-bold">Detector de Acordes en el Mástil</h2>
-            <p id="detected-notes-lbl" class="text-xs th-muted">Pulsa trastes en cada cuerda para identificar el acorde</p>
+            <p class="text-xs th-muted">Pulsa un número de traste para cejilla completa; vuelve a pulsar una nota activa o usa 🔊/✕ para mutear la cuerda</p>
           </div>
           <div class="flex flex-wrap items-center gap-2">
-            <span id="detected-chord-name" class="font-serif-title text-3xl font-extrabold th-accent px-4 py-1 rounded-xl th-subcard border">--</span>
-            <button onclick="playDetectedChord()" class="bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold px-3.5 py-2 rounded-xl text-xs">🔊 Oír</button>
-            <button onclick="addDetectedChordToBase()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3.5 py-2 rounded-xl text-xs">+ A Rueda Base</button>
-            <button onclick="resetFretboardDetector()" class="th-input border px-3 py-2 rounded-xl text-xs font-bold">↺ Aire</button>
+            <button type="button" onclick="playDetectedChord()" class="bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold px-4 py-2 rounded-xl text-xs sm:text-sm">▶ Escuchar Acorde</button>
+            <button type="button" onclick="addDetectedChordToBase()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3.5 py-2 rounded-xl text-xs sm:text-sm">+ A Rueda Base</button>
+            <button type="button" onclick="resetFretboardDetector()" class="th-input border hover:border-amber-500 px-3 py-2 rounded-xl text-xs sm:text-sm font-bold">↺ Aire</button>
           </div>
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-3 items-center">
+          <div id="detector-notes-badges" class="lg:col-span-5 flex flex-wrap gap-2"></div>
+          <div id="detector-chord-info" class="lg:col-span-7 th-subcard border rounded-xl px-3.5 py-2.5 text-xs space-y-1"></div>
         </div>
         <div id="fretboard-detector-wrap" class="overflow-x-auto"></div>
       </section>
@@ -616,11 +676,11 @@
     <!-- PESTAÑA 5: MODOS Y ESCALAS                                          -->
     <!-- =================================================================== -->
     <div id="tab-modos" class="tab-panel hidden space-y-4">
-      <section class="th-card border rounded-2xl p-4 sm:p-5 shadow-md space-y-4">
+      <section class="th-card border rounded-2xl p-3.5 sm:p-5 shadow-md space-y-4">
         <div class="flex flex-wrap items-center justify-between gap-2.5">
           <div>
             <h2 class="font-serif-title text-xl font-bold">Modos y Escalas en el Mástil</h2>
-            <p class="text-xs th-muted">Explora 14 escalas y modos; pulsa cualquier nota o escucha la escala completa</p>
+            <p class="text-xs th-muted">Explora 14 escalas y modos; pulsa cualquier nota o escucha la escala en subida y bajada</p>
           </div>
           <div class="flex flex-wrap items-center gap-2">
             <select id="mode-root-select" onchange="renderModeFretboard()" class="th-input border rounded-xl px-3 py-2 text-xs sm:text-sm font-bold"></select>
@@ -640,7 +700,7 @@
               <option value="blues">Blues</option>
               <option value="diminished">Disminuida</option>
             </select>
-            <button onclick="playCurrentScale()" class="bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold px-4 py-2 rounded-xl text-xs sm:text-sm">▶ Escuchar Escala</button>
+            <button type="button" id="btn-play-scale" onclick="playCurrentScale()" class="bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold px-4 py-2 rounded-xl text-xs sm:text-sm">▶ Escuchar Escala</button>
           </div>
         </div>
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-3 items-center">
@@ -658,28 +718,26 @@
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
 
         <!-- COLUMNA IZQUIERDA: AFINADOR CROMÁTICO + OSCILOSCOPIO -->
-        <section class="lg:col-span-7 th-card border rounded-2xl p-4 sm:p-5 shadow-md space-y-4 text-center">
+        <section class="lg:col-span-7 th-card border rounded-2xl p-3.5 sm:p-5 shadow-md space-y-4 text-center">
           <div class="flex flex-wrap items-center justify-between gap-2 text-left">
             <div>
               <h2 class="font-serif-title text-xl font-bold">Afinador Cromático &amp; Osciloscopio</h2>
               <p class="text-xs th-muted">Monitoriza la onda y el nivel de entrada en tiempo real</p>
             </div>
-            <div class="flex flex-wrap items-center gap-2">
-              <select id="tuner-audio-device-select" onchange="onAudioDeviceChange(this.value)" title="Entrada de audio del ordenador" class="th-input border rounded-xl px-2.5 py-2 text-xs font-semibold max-w-[210px]">
+            <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+              <select id="tuner-audio-device-select" onchange="onAudioDeviceChange(this.value)" title="Entrada de audio del ordenador" class="th-input border rounded-xl px-2.5 py-2 text-xs font-semibold w-full sm:w-auto sm:max-w-[210px]">
                 <option value="">🎙️ Entrada por defecto</option>
               </select>
-              <button id="btn-tuner-mic" onclick="toggleTunerMic()" class="bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold px-4 py-2.5 rounded-xl text-xs sm:text-sm shadow-sm">
+              <button type="button" id="btn-tuner-mic" onclick="toggleTunerMic()" class="bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold px-4 py-2.5 rounded-xl text-xs sm:text-sm shadow-sm w-full sm:w-auto">
                 🎙️ Activar Micrófono
               </button>
             </div>
           </div>
 
-          <!-- Nota detectada y frecuencia -->
           <div class="th-subcard border rounded-2xl p-4 space-y-2">
-            <div id="tuner-note-display" class="font-serif-title text-6xl font-extrabold th-accent">--</div>
-            <div id="tuner-cents-display" class="text-xs sm:text-sm font-mono-code th-muted">Pulsa Activar Micrófono para afinar</div>
+            <div id="tuner-note-display" class="font-serif-title text-5xl sm:text-6xl font-extrabold th-accent">--</div>
+            <div id="tuner-cents-display" class="text-xs sm:text-sm font-mono-code th-muted break-words">Pulsa Activar Micrófono para afinar</div>
 
-            <!-- Barra de cents (-50 a +50) -->
             <div class="max-w-md mx-auto pt-2 space-y-1">
               <div class="relative h-4 rounded-full bg-stone-800 border border-stone-700 overflow-hidden">
                 <div class="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 w-1 bg-emerald-500/50"></div>
@@ -693,7 +751,6 @@
             </div>
           </div>
 
-          <!-- Osciloscopio en tiempo real y medidor VU -->
           <div class="th-subcard border rounded-2xl p-3.5 space-y-2.5 text-left">
             <div class="flex items-center justify-between text-xs font-mono-code">
               <span class="font-bold uppercase th-accent">📈 Osciloscopio</span>
@@ -707,7 +764,7 @@
         </section>
 
         <!-- COLUMNA DERECHA: CONTROLES DEL METRÓNOMO -->
-        <section class="lg:col-span-5 th-card border rounded-2xl p-4 sm:p-5 shadow-md space-y-4">
+        <section class="lg:col-span-5 th-card border rounded-2xl p-3.5 sm:p-5 shadow-md space-y-4">
           <div class="flex items-center justify-between">
             <div>
               <h2 class="font-serif-title text-xl font-bold">Metrónomo</h2>
@@ -716,10 +773,8 @@
             <span id="metro-status-pill" class="text-xs font-mono-code font-bold px-2.5 py-1 rounded-full th-subcard border th-muted">Detenido</span>
           </div>
 
-          <!-- Pulsos visuales -->
-          <div id="metro-beats-display" class="flex items-center justify-center gap-3 py-3 th-subcard border rounded-2xl"></div>
+          <div id="metro-beats-display" class="flex flex-wrap items-center justify-center gap-2 sm:gap-3 py-3 th-subcard border rounded-2xl"></div>
 
-          <!-- Selector grande de BPM -->
           <div class="th-subcard border rounded-2xl p-4 space-y-3 text-center">
             <div class="flex items-baseline justify-center gap-1.5">
               <span id="metro-bpm-big" class="font-serif-title text-5xl font-extrabold th-accent">112</span>
@@ -737,14 +792,13 @@
             />
 
             <div class="grid grid-cols-4 gap-1.5">
-              <button onclick="setMetronomeBpm((Number(state.song.base.bpm) || 112) - 5)" class="th-input border hover:border-amber-500 py-2 rounded-xl text-xs font-bold">-5</button>
-              <button onclick="setMetronomeBpm((Number(state.song.base.bpm) || 112) - 1)" class="th-input border hover:border-amber-500 py-2 rounded-xl text-xs font-bold">-1</button>
-              <button onclick="setMetronomeBpm((Number(state.song.base.bpm) || 112) + 1)" class="th-input border hover:border-amber-500 py-2 rounded-xl text-xs font-bold">+1</button>
-              <button onclick="setMetronomeBpm((Number(state.song.base.bpm) || 112) + 5)" class="th-input border hover:border-amber-500 py-2 rounded-xl text-xs font-bold">+5</button>
+              <button type="button" onclick="setMetronomeBpm((Number(state.song.base.bpm) || 112) - 5)" class="th-input border hover:border-amber-500 py-2 rounded-xl text-xs font-bold">-5</button>
+              <button type="button" onclick="setMetronomeBpm((Number(state.song.base.bpm) || 112) - 1)" class="th-input border hover:border-amber-500 py-2 rounded-xl text-xs font-bold">-1</button>
+              <button type="button" onclick="setMetronomeBpm((Number(state.song.base.bpm) || 112) + 1)" class="th-input border hover:border-amber-500 py-2 rounded-xl text-xs font-bold">+1</button>
+              <button type="button" onclick="setMetronomeBpm((Number(state.song.base.bpm) || 112) + 5)" class="th-input border hover:border-amber-500 py-2 rounded-xl text-xs font-bold">+5</button>
             </div>
           </div>
 
-          <!-- Compás y acento -->
           <div class="grid grid-cols-2 gap-2.5">
             <div>
               <label class="text-[11px] font-bold uppercase th-muted">Compás</label>
@@ -763,20 +817,18 @@
             </div>
           </div>
 
-          <!-- Botones principales Metrónomo -->
           <div class="grid grid-cols-2 gap-2.5 pt-1">
-            <button id="btn-metro-panel" onclick="toggleMetronome()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 px-4 rounded-xl text-sm shadow-sm">
+            <button type="button" id="btn-metro-panel" onclick="toggleMetronome()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 px-4 rounded-xl text-sm shadow-sm">
               ▶ Iniciar
             </button>
-            <button onclick="tapMetronomeTempo()" class="th-input border hover:border-amber-500 font-bold py-3 px-4 rounded-xl text-sm">
+            <button type="button" onclick="tapMetronomeTempo()" class="th-input border hover:border-amber-500 font-bold py-3 px-4 rounded-xl text-sm">
               👆 Tap Tempo
             </button>
           </div>
         </section>
       </div>
 
-      <!-- CUERDAS DE REFERENCIA -->
-      <section class="th-card border rounded-2xl p-4 sm:p-5 shadow-md space-y-3 text-center">
+      <section class="th-card border rounded-2xl p-3.5 sm:p-5 shadow-md space-y-3 text-center">
         <div>
           <h3 class="font-serif-title text-base font-bold">Cuerdas de Referencia</h3>
           <p class="text-xs th-muted">Pulsa cada cuerda para oír su tono exacto según tu instrumento y afinación actual</p>
@@ -787,14 +839,14 @@
   </main>
 
   <!-- MODAL 1: SELECTOR DE MIEMBRO DEL CULTO Y PERMISO DE MICRÓFONO -->
-  <div id="user-modal" class="fixed inset-0 z-50 hidden bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="th-card border rounded-2xl max-w-md w-full p-5 shadow-2xl space-y-4">
-      <div class="flex items-center justify-between">
+  <div id="user-modal" class="fixed inset-0 z-50 hidden bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+    <div class="th-card border rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto p-4 sm:p-5 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between gap-2">
         <div>
           <h3 class="font-serif-title text-xl font-bold">¿Quién está tocando hoy?</h3>
           <p class="text-xs th-muted">Selecciona tu perfil para cargar tu instrumento y evitar conflictos al editar</p>
         </div>
-        <button onclick="closeUserModal()" class="th-input border px-2.5 py-1 rounded-lg text-xs font-bold">✕</button>
+        <button type="button" onclick="closeUserModal()" class="th-input border px-2.5 py-1 rounded-lg text-xs font-bold shrink-0">✕</button>
       </div>
 
       <div id="members-grid" class="grid grid-cols-2 gap-2.5"></div>
@@ -808,7 +860,7 @@
         class="th-subcard border rounded-2xl p-3.5 flex items-center justify-between gap-3 cursor-pointer hover:border-amber-500 transition-colors select-none"
       >
         <div class="space-y-0.5 flex-1">
-          <div class="text-xs font-bold flex items-center gap-1.5">
+          <div class="text-xs font-bold flex flex-wrap items-center gap-1.5">
             <span>🎙️ Permitir uso del micrófono</span>
             <span id="mic-perm-badge" class="text-[11px] px-2 py-0.5 rounded-full bg-amber-500/15 th-accent font-mono-code">Pendiente</span>
           </div>
@@ -836,33 +888,22 @@
   </div>
 
   <!-- MODAL 2: REPERTORIO EN GOOGLE DRIVE / .JSON -->
-  <div id="songs-modal" class="fixed inset-0 z-50 hidden bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="th-card border rounded-2xl max-w-2xl w-full p-5 shadow-2xl space-y-4 max-h-[88vh] flex flex-col">
+  <div id="songs-modal" class="fixed inset-0 z-50 hidden bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+    <div class="th-card border rounded-2xl max-w-2xl w-full p-4 sm:p-5 shadow-2xl space-y-4 max-h-[88vh] flex flex-col">
       <div class="flex flex-wrap items-center justify-between gap-2 border-b pb-3" style="border-color: var(--border-main);">
         <div>
           <h3 class="font-serif-title text-xl font-bold">Repertorio en Google Drive</h3>
           <p class="text-xs th-muted">Canciones compartidas de Billy Mugre's Cult</p>
         </div>
         <div class="flex flex-wrap items-center gap-1.5">
-          <button onclick="exportProjectsJson()" class="th-input border hover:border-amber-500 text-xs font-bold px-3 py-2 rounded-xl">⬇ .JSON</button>
+          <button type="button" onclick="exportProjectsJson()" class="th-input border hover:border-amber-500 text-xs font-bold px-3 py-2 rounded-xl">⬇ .JSON</button>
           <label class="th-input border hover:border-amber-500 text-xs font-bold px-3 py-2 rounded-xl cursor-pointer">
             ⬆ .JSON
             <input type="file" accept=".json,application/json" onchange="importProjectsJson(event)" class="hidden" />
           </label>
-          <button onclick="syncProjectsFromCloud(true)" class="th-input border hover:border-amber-500 text-xs font-bold px-3 py-2 rounded-xl">↻ Sincronizar</button>
-          <button onclick="resetCleanCloudJson()" class="th-input border hover:border-rose-500 text-rose-400 text-xs font-bold px-3 py-2 rounded-xl">🧹 Limpiar .JSON</button>
-          <button onclick="closeSongsModal()" class="th-input border px-3 py-2 rounded-xl text-xs font-bold">✕</button>
-        </div>
-      </div>
-
-      <!-- Barra de progreso interna dentro de la ventana de Canciones -->
-      <div id="modal-progress-wrap" class="hidden th-subcard border rounded-xl p-2.5 space-y-1.5">
-        <div class="flex items-center justify-between text-xs font-mono-code font-bold">
-          <span id="modal-progress-text" class="th-accent">Sincronizando...</span>
-          <span id="modal-progress-pct">0%</span>
-        </div>
-        <div class="w-full h-2 rounded-full bg-stone-800 overflow-hidden">
-          <div id="modal-progress-bar" class="h-full bg-amber-500 transition-all duration-200" style="width: 0%;"></div>
+          <button type="button" onclick="syncProjectsFromCloud(true)" class="th-input border hover:border-amber-500 text-xs font-bold px-3 py-2 rounded-xl">↻ Sincronizar</button>
+          <button type="button" onclick="resetCleanCloudJson()" class="th-input border hover:border-rose-500 text-rose-400 text-xs font-bold px-3 py-2 rounded-xl">🧹 Limpiar .JSON</button>
+          <button type="button" onclick="closeSongsModal()" class="th-input border px-3 py-2 rounded-xl text-xs font-bold">✕</button>
         </div>
       </div>
 
@@ -871,14 +912,14 @@
   </div>
 
   <!-- MODAL 3: EDITOR DE SECCIÓN -->
-  <div id="section-editor-modal" class="fixed inset-0 z-50 hidden bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="th-card border rounded-2xl max-w-lg w-full p-5 shadow-2xl space-y-3.5">
+  <div id="section-editor-modal" class="fixed inset-0 z-50 hidden bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+    <div class="th-card border rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-4 sm:p-5 shadow-2xl space-y-3.5">
       <div class="flex items-center justify-between border-b pb-2.5" style="border-color: var(--border-main);">
         <h3 class="font-serif-title text-lg font-bold">Editar Sección</h3>
-        <button onclick="closeSectionEditor()" class="th-input border px-2.5 py-1 rounded-lg text-xs font-bold">✕</button>
+        <button type="button" onclick="closeSectionEditor()" class="th-input border px-2.5 py-1 rounded-lg text-xs font-bold">✕</button>
       </div>
 
-      <div class="grid grid-cols-2 gap-2.5">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
         <div>
           <label class="text-[11px] font-bold uppercase th-muted">Tipo de parte</label>
           <select id="se-role" class="w-full th-input border rounded-xl px-3 py-2 text-sm font-bold mt-1">
@@ -902,7 +943,7 @@
         <input id="se-chords" type="text" class="w-full th-input border rounded-xl px-3 py-2 text-sm font-mono-code font-bold th-accent mt-1" />
       </div>
 
-      <div class="grid grid-cols-4 gap-2">
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
         <div>
           <label class="text-[11px] font-bold uppercase th-muted">Compás</label>
           <select id="se-timesig" class="w-full th-input border rounded-xl px-2 py-2 text-xs font-bold mt-1">
@@ -954,8 +995,8 @@
       </div>
 
       <div class="flex justify-end gap-2 pt-2">
-        <button onclick="closeSectionEditor()" class="th-input border px-4 py-2 rounded-xl text-xs font-bold">Cancelar</button>
-        <button onclick="saveSectionEditor()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl text-xs font-bold">Guardar cambios</button>
+        <button type="button" onclick="closeSectionEditor()" class="th-input border px-4 py-2 rounded-xl text-xs font-bold">Cancelar</button>
+        <button type="button" onclick="saveSectionEditor()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl text-xs font-bold">Guardar cambios</button>
       </div>
     </div>
   </div>
@@ -967,6 +1008,7 @@
     const GAS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbyW_bOCulTCXZOWL1EZbLBUYxozy97Dumuo--Gem4AK6aoyQPaEdPiD4Ga7iu8-8tIpPw/exec';
     const STORAGE_KEY = 'billy_mugre_studio_v02';
     const CULT_ACCESS_KEY = 'billy_mugre_auth_ok';
+    const CULT_WINDOW_FLAG = 'BILLY_MUGRE_UNLOCKED=1';
     const CULT_SECRET = 'muchamugre';
 
     const NOTES_SHARP = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -980,8 +1022,8 @@
         name: 'Banjolele',
         maxFret: 12,
         tunings: {
-          'DADA': ['D4', 'A4', 'D4', 'A4'],
           'GCEA': ['G4', 'C4', 'E4', 'A4'],
+          'DADA': ['D4', 'A4', 'D4', 'A4'],
           'ADF#B': ['A4', 'D4', 'F#4', 'B4']
         }
       },
@@ -1035,7 +1077,7 @@
     };
 
     const CULT_MEMBERS = [
-      { id: 'gon', name: 'Gon', role: 'Banjolele', inst: 'banjolele', tuning: 'DADA' },
+      { id: 'gon', name: 'Gon', role: 'Banjolele', inst: 'banjolele', tuning: 'GCEA' },
       { id: 'julen', name: 'Julen', role: 'Banjo 5c', inst: 'banjo', tuning: 'gDGBD' },
       { id: 'dani', name: 'Dani', role: 'Guitarra', inst: 'guitar', tuning: 'EADGBE' },
       { id: 'venan', name: 'Venan', role: 'Guitarra', inst: 'guitar', tuning: 'EADGBE' },
@@ -1176,7 +1218,7 @@
       country: '1 (Bajo) • 1y (↑) • 2 (Chop ↓) • 2y (↑) • 3 (Bajo V) • 3y (↑) • 4 (Chop ↓) • 4y (↑)',
       swing: '1 (Bajo largo) • 2 (↓) • 2a (↑ atresillado) • 3 (Bajo V) • 4 (↓) • 4a (↑)',
       foxtrot: '1 (Bajo largo) • 3 (Rasgueo ↓) • 4 (Rasgueo ↑)',
-      circus: '1 (Tuba Bajo I) • 1y (Platillo seco) • 2 (Tuba Bajo V) • 2y (Platillo seco)',
+      circus: '1 (Tuba Bajo I) • 1y (Acorde brillante ↑) • 2 (Tuba Bajo V) • 2y (Acorde brillante ↑)',
       gypsy: '1 (Bajo seco) • 2 (La Pompe Chop!) • 3 (Bajo seco) • 4 (La Pompe Chop!)',
       ragtime: '1 (Bajo I) • 1y (↑) • 2 (Bajo V) • 2y (↑) • 3 (Bajo I) • 3y (↑) • 4 (Chop)',
       polka: '1 (Oom bajo) • 1y (Pah ↑) • 2 (Oom bajo V) • 2y (Pah ↑)',
@@ -1193,11 +1235,22 @@
       jig: '1-2-3 (Acento ↓ ↑ ↓) • 4-5-6 (Acento ↓ ↑ ↓)'
     };
 
+    const SECTION_PALETTE = [
+      { darkBg: 'rgba(180, 122, 68, 0.14)', darkBorder: 'rgba(217, 155, 92, 0.36)', lightBg: '#f6ede2', lightBorder: '#d7be9e' },
+      { darkBg: 'rgba(84, 138, 126, 0.15)', darkBorder: 'rgba(116, 176, 162, 0.36)', lightBg: '#e8f1ee', lightBorder: '#accbc2' },
+      { darkBg: 'rgba(136, 108, 152, 0.15)', darkBorder: 'rgba(172, 144, 190, 0.36)', lightBg: '#f0ebf4', lightBorder: '#c8b8d6' },
+      { darkBg: 'rgba(156, 98, 92, 0.15)', darkBorder: 'rgba(194, 132, 126, 0.36)', lightBg: '#f4eae8', lightBorder: '#d7b7b3' },
+      { darkBg: 'rgba(128, 140, 86, 0.15)', darkBorder: 'rgba(166, 178, 118, 0.36)', lightBg: '#eff2e6', lightBorder: '#c4cca8' },
+      { darkBg: 'rgba(92, 124, 156, 0.15)', darkBorder: 'rgba(130, 164, 196, 0.36)', lightBg: '#e9eff5', lightBorder: '#b2c5d8' },
+      { darkBg: 'rgba(162, 136, 82, 0.15)', darkBorder: 'rgba(198, 172, 114, 0.36)', lightBg: '#f4f0e4', lightBorder: '#d5c7a3' },
+      { darkBg: 'rgba(138, 112, 102, 0.16)', darkBorder: 'rgba(176, 148, 138, 0.36)', lightBg: '#f0ebe8', lightBorder: '#cbbcb6' }
+    ];
+
     const state = {
       theme: 'dark',
       currentUser: null,
       inst: 'banjolele',
-      tuning: 'DADA',
+      tuning: 'GCEA',
       transpose: 0,
       micGranted: false,
       selectedAudioDeviceId: '',
@@ -1207,6 +1260,8 @@
       detectorFrets: [0, 0, 0, 0],
       inspRoleFilter: 'all',
       inspSeed: 0,
+      playingInspIdx: -1,
+      structMetronomeClick: false,
       projects: [],
       bank: [
         { id: 'b1', name: 'Vuelta Taberna D', chordsText: 'D5 - G - A - D5', style: 'folk', timeSig: '4/4', bpm: 118 },
@@ -1236,7 +1291,76 @@
     };
 
     // =========================================================================
-    // 2. UTILIDADES GENERALES, PERSISTENCIA, UNDO/REDO Y TEMA
+    // 2. INDEXEDDB PARA TOMAS PERSISTENTES ENTRE SESIONES
+    // =========================================================================
+    const TAKES_DB_NAME = 'billy_mugre_takes_db';
+    const TAKES_STORE = 'audio_blobs';
+
+    function openTakesDb() {
+      return new Promise((resolve, reject) => {
+        if (!window.indexedDB) return resolve(null);
+        const req = indexedDB.open(TAKES_DB_NAME, 1);
+        req.onupgradeneeded = () => {
+          const db = req.result;
+          if (!db.objectStoreNames.contains(TAKES_STORE)) {
+            db.createObjectStore(TAKES_STORE, { keyPath: 'id' });
+          }
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    async function saveTakeBlobIdb(id, blob) {
+      try {
+        const db = await openTakesDb();
+        if (!db || !blob) return;
+        const tx = db.transaction(TAKES_STORE, 'readwrite');
+        tx.objectStore(TAKES_STORE).put({ id, blob, savedAt: Date.now() });
+      } catch (e) {}
+    }
+
+    async function getTakeBlobIdb(id) {
+      try {
+        const db = await openTakesDb();
+        if (!db) return null;
+        return await new Promise((resolve) => {
+          const tx = db.transaction(TAKES_STORE, 'readonly');
+          const req = tx.objectStore(TAKES_STORE).get(id);
+          req.onsuccess = () => resolve(req.result ? req.result.blob : null);
+          req.onerror = () => resolve(null);
+        });
+      } catch (e) {
+        return null;
+      }
+    }
+
+    async function deleteTakeBlobIdb(id) {
+      try {
+        const db = await openTakesDb();
+        if (!db) return;
+        const tx = db.transaction(TAKES_STORE, 'readwrite');
+        tx.objectStore(TAKES_STORE).delete(id);
+      } catch (e) {}
+    }
+
+    async function hydrateTakesFromIdb() {
+      const takes = state.song.takes || [];
+      let changed = false;
+      for (const t of takes) {
+        if (!t.url) {
+          const blob = await getTakeBlobIdb(t.id);
+          if (blob) {
+            t.url = URL.createObjectURL(blob);
+            changed = true;
+          }
+        }
+      }
+      if (changed) renderSongTakesList();
+    }
+
+    // =========================================================================
+    // 3. UTILIDADES GENERALES, PERSISTENCIA, AUTH BLINDADA Y TEMA
     // =========================================================================
     function showToast(msg) {
       const box = document.getElementById('toast-box');
@@ -1245,6 +1369,59 @@
       box.classList.remove('hidden');
       clearTimeout(box._timer);
       box._timer = setTimeout(() => box.classList.add('hidden'), 3200);
+    }
+
+    function markCultUnlocked() {
+      window.__cultAuthed = true;
+      try { sessionStorage.setItem(CULT_ACCESS_KEY, '1'); } catch (e) {}
+      try { localStorage.setItem(CULT_ACCESS_KEY, '1'); } catch (e) {}
+      try {
+        if (!String(window.name || '').includes(CULT_WINDOW_FLAG)) {
+          window.name = (window.name ? window.name + ';' : '') + CULT_WINDOW_FLAG;
+        }
+      } catch (e) {}
+    }
+
+    function isCultUnlocked() {
+      if (window.__cultAuthed) return true;
+      if (state.micGranted) return true;
+      try { if (String(window.name || '').includes(CULT_WINDOW_FLAG)) return true; } catch (e) {}
+      try { if (sessionStorage.getItem(CULT_ACCESS_KEY) === '1') return true; } catch (e) {}
+      try { if (localStorage.getItem(CULT_ACCESS_KEY) === '1') return true; } catch (e) {}
+      return false;
+    }
+
+    function checkCultAuthGate() {
+      const overlay = document.getElementById('cult-login-overlay');
+      if (!overlay) return true;
+      if (isCultUnlocked()) {
+        markCultUnlocked();
+        overlay.classList.add('hidden');
+        return true;
+      }
+      overlay.classList.remove('hidden');
+      setTimeout(() => document.getElementById('cult-password-input')?.focus(), 50);
+      return false;
+    }
+
+    function submitCultPassword(ev) {
+      if (ev) ev.preventDefault();
+      const input = document.getElementById('cult-password-input');
+      const err = document.getElementById('cult-password-error');
+      const val = (input ? input.value : '').trim().toLowerCase();
+      if (val === CULT_SECRET) {
+        markCultUnlocked();
+        if (err) err.classList.add('hidden');
+        document.getElementById('cult-login-overlay')?.classList.add('hidden');
+        if (!state.currentUser) openUserModal();
+        showToast('🤘 ¡Bienvenido al Culto!');
+      } else {
+        if (err) err.classList.remove('hidden');
+        if (input) {
+          input.value = '';
+          input.focus();
+        }
+      }
     }
 
     function loadLocalState() {
@@ -1288,7 +1465,8 @@
           name: t.name,
           author: t.author,
           duration: t.duration,
-          createdAt: t.createdAt
+          createdAt: t.createdAt,
+          driveUrl: t.driveUrl || ''
         }));
         const snapshot = {
           theme: state.theme,
@@ -1304,9 +1482,12 @@
         };
         localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
       } catch (e) {}
-      document.getElementById('songs-count-lbl').textContent = String(state.projects.length);
-      document.getElementById('bank-count-lbl').textContent = String(state.bank.length);
-      document.getElementById('takes-count-lbl').textContent = String((state.song.takes || []).length);
+      const sc = document.getElementById('songs-count-lbl');
+      const bc = document.getElementById('bank-count-lbl');
+      const tc = document.getElementById('takes-count-lbl');
+      if (sc) sc.textContent = String(state.projects.length);
+      if (bc) bc.textContent = String(state.bank.length);
+      if (tc) tc.textContent = String((state.song.takes || []).length);
     }
 
     function toggleThemeMode() {
@@ -1388,40 +1569,6 @@
       }
     });
 
-    function checkCultAuthGate() {
-      const overlay = document.getElementById('cult-login-overlay');
-      if (!overlay) return true;
-      const unlocked = sessionStorage.getItem(CULT_ACCESS_KEY) === '1' || localStorage.getItem(CULT_ACCESS_KEY) === '1';
-      if (unlocked) {
-        overlay.classList.add('hidden');
-        return true;
-      }
-      overlay.classList.remove('hidden');
-      setTimeout(() => document.getElementById('cult-password-input')?.focus(), 50);
-      return false;
-    }
-
-    function submitCultPassword(ev) {
-      if (ev) ev.preventDefault();
-      const input = document.getElementById('cult-password-input');
-      const err = document.getElementById('cult-password-error');
-      const val = (input ? input.value : '').trim().toLowerCase();
-      if (val === CULT_SECRET) {
-        sessionStorage.setItem(CULT_ACCESS_KEY, '1');
-        localStorage.setItem(CULT_ACCESS_KEY, '1');
-        if (err) err.classList.add('hidden');
-        document.getElementById('cult-login-overlay')?.classList.add('hidden');
-        if (!state.currentUser) openUserModal();
-        showToast('🤘 ¡Bienvenido al Culto!');
-      } else {
-        if (err) err.classList.remove('hidden');
-        if (input) {
-          input.value = '';
-          input.focus();
-        }
-      }
-    }
-
     function openUserModal() {
       const grid = document.getElementById('members-grid');
       grid.innerHTML = CULT_MEMBERS.map(m => {
@@ -1468,8 +1615,8 @@
       document.querySelectorAll('.tab-btn').forEach(btn => {
         const isActive = btn.dataset.tab === tabId;
         btn.className = isActive
-          ? 'tab-btn py-2.5 px-1 flex flex-col sm:flex-row items-center justify-center gap-1.5 text-xs sm:text-sm font-bold th-accent border-b-2 border-amber-500 bg-amber-500/10'
-          : 'tab-btn py-2.5 px-1 flex flex-col sm:flex-row items-center justify-center gap-1.5 text-xs sm:text-sm font-semibold th-muted hover:text-amber-500';
+          ? 'tab-btn min-w-0 py-2 sm:py-2.5 px-0.5 sm:px-1 flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 text-[10px] sm:text-sm leading-tight tracking-tight sm:tracking-normal font-bold th-accent border-b-2 border-amber-500 bg-amber-500/10'
+          : 'tab-btn min-w-0 py-2 sm:py-2.5 px-0.5 sm:px-1 flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 text-[10px] sm:text-sm leading-tight tracking-tight sm:tracking-normal font-semibold th-muted hover:text-amber-500';
       });
 
       if (tabId === 'acordes') renderChordDictionary();
@@ -1484,7 +1631,7 @@
     }
 
     // =========================================================================
-    // 3. TEORÍA MUSICAL, PARSEO DE ACORDES, DIGITACIONES Y DIAGRAMA SVG
+    // 4. TEORÍA MUSICAL, PARSEO DE ACORDES, DIGITACIONES Y DIAGRAMA SVG
     // =========================================================================
     function noteToMidi(noteStr) {
       const m = String(noteStr || '').trim().match(/^([A-Ga-g][#b]?)(-?\d+)$/);
@@ -1580,9 +1727,8 @@
 
       const allowedFretsPerString = openMidis.map((om, sIdx) => {
         const list = [];
-        const startFret = (state.inst === 'banjo' && sIdx === 0) ? 0 : 0;
         const endFret = (state.inst === 'banjo' && sIdx === 0) ? 0 : maxFret;
-        for (let f = startFret; f <= endFret; f++) {
+        for (let f = 0; f <= endFret; f++) {
           const pc = (om + f) % 12;
           if (targetPcs.has(pc)) list.push(f);
         }
@@ -1650,8 +1796,8 @@
       const rightPad = large ? 12 : 10;
       const topPad = large ? 16 : 14;
       const bottomPad = large ? 12 : 10;
-      const strGap = large ? (numStrings > 4 ? 15 : 19) : (numStrings > 4 ? 12 : 15);
-      const fretGap = large ? 20 : 16;
+      const strGap = large ? (numStrings > 4 ? 14 : 18) : (numStrings > 4 ? 12 : 15);
+      const fretGap = large ? 19 : 16;
 
       const gridW = (numStrings - 1) * strGap;
       const gridH = numFrets * fretGap;
@@ -1681,7 +1827,7 @@
           const relFret = fret - baseFret + 1;
           if (relFret >= 1 && relFret <= numFrets) {
             const cy = topPad + (relFret - 0.5) * fretGap;
-            svg += `<circle cx="${x}" cy="${cy}" r="${large ? 5.6 : 4.8}" fill="var(--accent)"/>`;
+            svg += `<circle cx="${x}" cy="${cy}" r="${large ? 5.4 : 4.6}" fill="var(--accent)"/>`;
           }
         }
       }
@@ -1691,7 +1837,7 @@
     }
 
     // =========================================================================
-    // 4. MOTOR ACÚSTICO KARPLUS-STRONG + REPRODUCTOR RÍTMICO Y METRÓNOMO
+    // 5. MOTOR ACÚSTICO KARPLUS-STRONG + REPRODUCTOR RÍTMICO
     // =========================================================================
     let audioCtx = null;
     function getAudioCtx() {
@@ -1802,7 +1948,7 @@
     function playChordStrum(frets, delaySec = 0, direction = 'down', durationSec = 0.95, gainVal = 0.22, trebleOnly = false) {
       if (!frets || !frets.length) return;
       const openMidis = getOpenStringsMidi();
-      let indices = frets.map((_, i) => i);
+      let indices = frets.map((_, i) => i).filter(i => typeof frets[i] === 'number' && frets[i] >= 0);
       if (trebleOnly && indices.length > 2) {
         indices = indices.slice(-Math.min(3, indices.length));
       }
@@ -1827,10 +1973,10 @@
       }
     }
 
-    function playClickSound(accent = false) {
+    function playClickSound(accent = false, delaySec = 0) {
       const ctx = getAudioCtx();
       if (!ctx) return;
-      const now = ctx.currentTime;
+      const now = ctx.currentTime + Math.max(0, delaySec);
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = 'triangle';
@@ -1882,11 +2028,8 @@
 
         switch (style) {
           case 'folk':
-            if (isEvenBeat) {
-              playBassRoot(parsedChord, t, b === 2, 0.35);
-            } else {
-              playChordStrum(frets, t, 'down', beatSec * 0.72, 0.22, false);
-            }
+            if (isEvenBeat) playBassRoot(parsedChord, t, b === 2, 0.35);
+            else playChordStrum(frets, t, 'down', beatSec * 0.72, 0.22, false);
             break;
 
           case 'bumditty':
@@ -1932,8 +2075,7 @@
 
           case 'circus':
             playBassRoot(parsedChord, t, !isEvenBeat, 0.38);
-            playPercussiveMute(t + half, 0.26);
-            playChordStrum(frets, t + half, 'up', half * 0.45, 0.16, true);
+            playChordStrum(frets, t + half, 'up', half * 0.62, 0.23, true);
             break;
 
           case 'gypsy':
@@ -1984,11 +2126,8 @@
             break;
 
           case 'bluegrass':
-            if (isEvenBeat) {
-              playBassRoot(parsedChord, t, b === 2, 0.36);
-            } else {
-              playPercussiveMute(t, 0.30);
-            }
+            if (isEvenBeat) playBassRoot(parsedChord, t, b === 2, 0.36);
+            else playPercussiveMute(t, 0.30);
             break;
 
           case 'strum':
@@ -2036,7 +2175,7 @@
     }
 
     // =========================================================================
-    // 5. METRÓNOMO GLOBAL Y AFINADOR CROMÁTICO CON OSCILOSCOPIO
+    // 6. METRÓNOMO GLOBAL Y AFINADOR CROMÁTICO CON OSCILOSCOPIO
     // =========================================================================
     let metroTimer = null;
     let metroBeatIdx = 0;
@@ -2082,7 +2221,6 @@
       }
       metroBeatIdx = 0;
       const tick = () => {
-        const bpm = Number(state.song.base.bpm) || 112;
         const timeSig = state.song.base.timeSig || '4/4';
         const beats = timeSig === '3/4' ? 3 : (timeSig === '2/4' ? 2 : (timeSig === '6/8' ? 6 : 4));
         const accentChk = document.getElementById('metro-accent-chk');
@@ -2107,6 +2245,8 @@
       state.song.base.bpm = bpm;
       const baseInp = document.getElementById('base-bpm-input');
       if (baseInp) baseInp.value = String(bpm);
+      const structInp = document.getElementById('struct-bpm-input');
+      if (structInp) structInp.value = String(bpm);
       document.getElementById('global-bpm-lbl').textContent = `${bpm} BPM`;
       renderMetronomeControls();
       if (metroTimer) {
@@ -2157,7 +2297,6 @@
       }).join('');
     }
 
-    // Dispositivos de entrada de audio y afinador
     function updateMicPermissionUI() {
       const box = document.getElementById('mic-perm-box');
       const badge = document.getElementById('mic-perm-badge');
@@ -2180,7 +2319,12 @@
     }
 
     async function toggleMicPermissionBox(ev) {
-      if (ev) ev.stopPropagation();
+      if (ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+      }
+      markCultUnlocked();
+      saveLocalState();
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         showToast('⚠️ Tu navegador no soporta acceso a micrófono');
         return;
@@ -2189,6 +2333,7 @@
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         stream.getTracks().forEach(t => t.stop());
         state.micGranted = true;
+        markCultUnlocked();
         updateMicPermissionUI();
         await refreshAudioInputDevices(false);
         saveLocalState();
@@ -2252,6 +2397,8 @@
     }
 
     async function toggleTunerMic() {
+      markCultUnlocked();
+      saveLocalState();
       if (tunerStream) {
         stopTunerMic();
         document.getElementById('tuner-cents-display').textContent = 'Micrófono detenido';
@@ -2263,6 +2410,7 @@
           : { audio: true };
         tunerStream = await navigator.mediaDevices.getUserMedia(constraints);
         state.micGranted = true;
+        markCultUnlocked();
         updateMicPermissionUI();
         await refreshAudioInputDevices(false);
         const ctx = getAudioCtx();
@@ -2350,7 +2498,7 @@
     }
 
     // =========================================================================
-    // 6. COMPOSITOR, DURACIONES FRACCIONARIAS, ESTRUCTURA Y KARAOKE
+    // 7. COMPOSITOR, DURACIONES FRACCIONARIAS, ESTRUCTURA Y KARAOKE
     // =========================================================================
     function populateTuningsSelect() {
       const sel = document.getElementById('tuning-select');
@@ -2497,6 +2645,8 @@
       state.song.base.timeSig = document.getElementById('base-timesig-select').value;
       state.song.base.bpm = Math.max(40, Math.min(260, parseInt(document.getElementById('base-bpm-input').value, 10) || 112));
       document.getElementById('global-bpm-lbl').textContent = `${state.song.base.bpm} BPM`;
+      const structInp = document.getElementById('struct-bpm-input');
+      if (structInp) structInp.value = String(state.song.base.bpm);
       updateStyleDescBanner();
       renderMetronomeControls();
       recordSongHistory();
@@ -2508,20 +2658,40 @@
       const desc = STYLE_PATTERNS_INFO[state.song.base.style] || STYLE_PATTERNS_INFO.folk;
       const box = document.getElementById('base-style-desc');
       if (box) {
-        box.innerHTML = `<span>Patrón: <strong class="th-accent">${desc}</strong></span><button type="button" onclick="previewCurrentStylePattern()" class="th-accent font-bold hover:underline shrink-0">🔊 Probar patrón</button>`;
+        box.innerHTML = `<span class="min-w-0 break-words">Patrón: <strong class="th-accent">${desc}</strong></span><button type="button" onclick="previewCurrentStylePattern()" class="th-accent font-bold hover:underline shrink-0">🔊 Probar patrón</button>`;
       }
     }
 
-    function adjustGlobalTempo(delta) {
-      const next = Math.max(40, Math.min(260, (Number(state.song.base.bpm) || 112) + delta));
+    function setAllSectionsTempo(val) {
+      const next = Math.max(40, Math.min(260, parseInt(val, 10) || 112));
       state.song.base.bpm = next;
       state.song.structure.forEach(s => { s.bpm = next; });
-      document.getElementById('base-bpm-input').value = String(next);
+      const baseInp = document.getElementById('base-bpm-input');
+      const structInp = document.getElementById('struct-bpm-input');
+      if (baseInp) baseInp.value = String(next);
+      if (structInp) structInp.value = String(next);
       document.getElementById('global-bpm-lbl').textContent = `${next} BPM`;
       renderStructureList();
       renderMetronomeControls();
       recordSongHistory();
       saveLocalState();
+    }
+
+    function adjustAllSectionsTempo(delta) {
+      const cur = Number(state.song.base.bpm) || 112;
+      setAllSectionsTempo(cur + delta);
+    }
+
+    function adjustGlobalTempo(delta) {
+      adjustAllSectionsTempo(delta);
+    }
+
+    function toggleStructureMetronomeClick() {
+      state.structMetronomeClick = !state.structMetronomeClick;
+      const btn = document.getElementById('btn-struct-metro');
+      if (btn) {
+        btn.innerHTML = `<span id="struct-metro-dot" class="w-2 h-2 rounded-full ${state.structMetronomeClick ? 'bg-emerald-400' : 'bg-stone-500'}"></span><span>⏱️ Clic: ${state.structMetronomeClick ? 'ON' : 'OFF'}</span>`;
+      }
     }
 
     function renderBaseChords() {
@@ -2569,21 +2739,21 @@
         const frets = voicings[vIdx] || [];
         return `
           <div id="base-card-${idx}" class="chord-pill-big flex flex-col justify-between gap-1.5">
-            <div class="flex items-center justify-between gap-1 text-[11px] font-mono-code">
-              <span class="th-muted">#${idx + 1}</span>
-              <span class="px-1.5 py-0.5 rounded bg-black/30 th-muted">${frets.join('-')}</span>
-              <button type="button" onclick="removeBaseChordAt(${idx})" class="th-muted hover:text-rose-400 font-bold">✕</button>
+            <div class="flex items-center justify-between gap-1 text-[10px] sm:text-[11px] font-mono-code min-w-0">
+              <span class="th-muted shrink-0">#${idx + 1}</span>
+              <span class="px-1 py-0.5 rounded bg-black/30 th-muted truncate">${frets.join('-')}</span>
+              <button type="button" onclick="removeBaseChordAt(${idx})" class="th-muted hover:text-rose-400 font-bold shrink-0">✕</button>
             </div>
             <div class="text-center">
-              <div class="font-serif-title text-lg font-extrabold th-accent leading-tight">${parsed.display}</div>
+              <div class="font-serif-title text-base sm:text-lg font-extrabold th-accent leading-tight truncate">${parsed.display}</div>
               ${dur < 1 ? `<span class="inline-block text-[10px] font-mono-code font-bold px-1.5 rounded bg-amber-500/20 th-accent">${String(dur).replace('.', ',')} compás</span>` : ''}
             </div>
             <div class="py-0.5">${renderChordSvg(frets, true)}</div>
             <div class="grid grid-cols-2 gap-1">
-              <button type="button" onclick="playChordStrum([${frets.join(',')}], 0, 'down', 0.95, 0.22)" class="th-input border hover:border-amber-500 rounded-lg py-1.5 text-[11px] font-bold">🔊 Oír</button>
-              <button type="button" onclick="cycleBaseChordVoicing(${idx})" class="th-input border hover:border-amber-500 rounded-lg py-1.5 text-[11px] font-bold th-accent">Pos. ${vIdx + 1}/${voicings.length}</button>
+              <button type="button" onclick="playChordStrum([${frets.join(',')}], 0, 'down', 0.95, 0.22)" class="th-input border hover:border-amber-500 rounded-lg py-1.5 px-1 text-[10px] sm:text-[11px] font-bold truncate">🔊 Oír</button>
+              <button type="button" onclick="cycleBaseChordVoicing(${idx})" class="th-input border hover:border-amber-500 rounded-lg py-1.5 px-1 text-[10px] sm:text-[11px] font-bold th-accent truncate">Pos.${vIdx + 1}/${voicings.length}</button>
             </div>
-            <select onchange="setBaseChordDuration(${idx}, this.value)" title="Duración del acorde" class="w-full th-input border rounded-lg px-2 py-1 text-[11px] font-bold text-center">
+            <select onchange="setBaseChordDuration(${idx}, this.value)" title="Duración del acorde" class="w-full th-input border rounded-lg px-1.5 sm:px-2 py-1 text-[10px] sm:text-[11px] font-bold text-center">
               <option value="1" ${dur === 1 ? 'selected' : ''}>⏱ 1 compás</option>
               <option value="0.75" ${dur === 0.75 ? 'selected' : ''}>⏱ 0,75</option>
               <option value="0.5" ${dur === 0.5 ? 'selected' : ''}>⏱ 0,50</option>
@@ -2639,6 +2809,39 @@
       saveLocalState();
     }
 
+    function changeSectionRepeats(secId, delta) {
+      const sec = state.song.structure.find(s => s.id === secId);
+      if (!sec) return;
+      sec.repeats = Math.max(1, Math.min(32, (Number(sec.repeats) || 1) + delta));
+      renderStructureList();
+      renderRecStructureGuide();
+      recordSongHistory();
+      saveLocalState();
+    }
+
+    function duplicateStructureSection(idx) {
+      const src = state.song.structure[idx];
+      if (!src) return;
+      const copy = JSON.parse(JSON.stringify(src));
+      copy.id = 'sec_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+      state.song.structure.splice(idx + 1, 0, copy);
+      renderStructureList();
+      renderRecStructureGuide();
+      recordSongHistory();
+      saveLocalState();
+      showToast(`⧉ Duplicada: ${copy.name}`);
+    }
+
+    function getSectionColorStyle(sec, colorMap) {
+      const key = `${(sec.role || '').trim().toLowerCase()}::${(sec.name || '').trim().toLowerCase()}`;
+      if (!colorMap.has(key)) {
+        colorMap.set(key, SECTION_PALETTE[colorMap.size % SECTION_PALETTE.length]);
+      }
+      const pal = colorMap.get(key);
+      const isLight = state.theme === 'light';
+      return `background-color: ${isLight ? pal.lightBg : pal.darkBg}; border-color: ${isLight ? pal.lightBorder : pal.darkBorder};`;
+    }
+
     function renderStructureList() {
       const wrap = document.getElementById('structure-list');
       if (!wrap) return;
@@ -2647,6 +2850,7 @@
         return;
       }
 
+      const colorMap = new Map();
       wrap.innerHTML = state.song.structure.map((sec, sIdx) => {
         const chords = sec.isBreak ? ['NC'] : splitChordsText(sec.chordsText);
         const cards = chords.map((tok, cIdx) => {
@@ -2661,31 +2865,39 @@
           const vIdx = (sec.voicings?.[cIdx] || 0) % voicings.length;
           const frets = voicings[vIdx] || [];
           return `
-            <div id="struct-chord-${sIdx}-${cIdx}" class="struct-chord-card th-card border rounded-xl p-2 text-center min-w-[84px]">
+            <div id="struct-chord-${sIdx}-${cIdx}" class="struct-chord-card th-card border rounded-xl p-2 text-center min-w-[82px]">
               <div class="font-serif-title text-sm font-extrabold th-accent">${parsed.display} ${dur < 1 ? `<span class="text-[10px]">(${dur})</span>` : ''}</div>
               ${renderChordSvg(frets, false)}
             </div>
           `;
         }).join('');
 
+        const colorStyle = getSectionColorStyle(sec, colorMap);
+
         return `
-          <div id="struct-sec-${sIdx}" class="struct-card th-subcard border rounded-2xl p-3.5 space-y-2.5">
+          <div id="struct-sec-${sIdx}" class="struct-card border rounded-2xl p-3 sm:p-3.5 space-y-2.5 transition-all" style="${colorStyle}">
             <div class="flex flex-wrap items-center justify-between gap-2">
-              <div class="flex flex-wrap items-center gap-2">
-                <span class="text-xs font-mono-code font-bold px-2 py-0.5 rounded bg-amber-500/15 th-accent">#${sIdx + 1} ${sec.role.toUpperCase()}</span>
-                <strong class="text-sm">${sec.name}</strong>
-                <span class="text-xs font-mono-code th-muted">x${sec.repeats || 1} • ${sec.timeSig} • ${sec.bpm} BPM</span>
+              <div class="flex flex-wrap items-center gap-1.5 sm:gap-2 min-w-0">
+                <span class="text-[11px] font-mono-code font-bold px-2 py-0.5 rounded bg-black/20 th-accent">#${sIdx + 1} ${sec.role.toUpperCase()}</span>
+                <strong class="text-sm break-words">${sec.name}</strong>
+                <span class="text-[11px] font-mono-code th-muted">${sec.timeSig} • ${sec.bpm} BPM</span>
               </div>
-              <div class="flex items-center gap-1.5">
-                <button type="button" onclick="togglePlayAllStructure(${sIdx})" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-2.5 py-1 rounded-lg">▶</button>
+              <div class="flex flex-wrap items-center gap-1">
+                <div class="inline-flex items-center th-input border rounded-lg p-0.5 text-[11px] font-bold" title="Repeticiones de esta sección">
+                  <button type="button" onclick="changeSectionRepeats('${sec.id}', -1)" class="px-1.5 py-0.5 rounded hover:bg-amber-500/15">-</button>
+                  <span class="px-1.5 font-mono-code th-accent">x${sec.repeats || 1}</span>
+                  <button type="button" onclick="changeSectionRepeats('${sec.id}', 1)" class="px-1.5 py-0.5 rounded hover:bg-amber-500/15">+</button>
+                </div>
+                <button type="button" onclick="togglePlayAllStructure(${sIdx})" title="Reproducir desde aquí" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-2.5 py-1 rounded-lg">▶</button>
+                <button type="button" onclick="duplicateStructureSection(${sIdx})" title="Duplicar manteniendo nombre y color" class="th-input border hover:border-amber-500 text-xs font-bold px-2 py-1 rounded-lg">⧉</button>
                 <button type="button" onclick="moveStructureSection(${sIdx}, -1)" class="th-input border text-xs font-bold px-2 py-1 rounded-lg">↑</button>
                 <button type="button" onclick="moveStructureSection(${sIdx}, 1)" class="th-input border text-xs font-bold px-2 py-1 rounded-lg">↓</button>
-                <button type="button" onclick="openSectionEditor('${sec.id}')" class="th-input border text-xs font-bold px-2.5 py-1 rounded-lg">✎ Editar</button>
+                <button type="button" onclick="openSectionEditor('${sec.id}')" class="th-input border text-xs font-bold px-2.5 py-1 rounded-lg">✎</button>
                 <button type="button" onclick="deleteStructureSection('${sec.id}')" class="th-input border hover:border-rose-500 text-rose-400 text-xs font-bold px-2 py-1 rounded-lg">✕</button>
               </div>
             </div>
             <div class="flex flex-wrap gap-2">${cards}</div>
-            ${sec.lyrics ? `<p class="text-xs italic th-muted border-t pt-1.5" style="border-color: var(--border-main);">${sec.lyrics}</p>` : ''}
+            ${sec.lyrics ? `<p class="text-xs italic th-muted border-t pt-1.5 break-words" style="border-color: var(--border-main);">${sec.lyrics}</p>` : ''}
           </div>
         `;
       }).join('');
@@ -2748,7 +2960,7 @@
       saveLocalState();
     }
 
-    // Reproducción de Rueda Base y Estructura Karaoke
+    // Reproducción de Rueda Base, Estructura Karaoke e Inspiraciones
     let playbackHandle = null;
     let playbackMode = null;
 
@@ -2758,12 +2970,14 @@
         playbackHandle = null;
       }
       playbackMode = null;
+      state.playingInspIdx = -1;
       document.querySelectorAll('.active-play').forEach(el => el.classList.remove('active-play'));
       document.querySelectorAll('.active-sec').forEach(el => el.classList.remove('active-sec'));
       const b1 = document.getElementById('btn-play-base');
       const b2 = document.getElementById('btn-play-all');
       if (b1) b1.textContent = '▶ Escuchar Rueda';
       if (b2) b2.textContent = '▶ Tocar Todo (Karaoke)';
+      renderInspirationList();
     }
 
     function togglePlayBase() {
@@ -2854,7 +3068,15 @@
         const bpm = Number(item.sec.bpm) || 112;
         const ts = item.sec.timeSig || '4/4';
         const beats = ts === '3/4' ? 3 : (ts === '2/4' ? 2 : (ts === '6/8' ? 3 : 4));
+        const beatSec = 60 / bpm;
         const stepMs = beats * (60000 / bpm) * frac;
+
+        if (state.structMetronomeClick) {
+          const activeBeats = Math.max(1, Math.round(beats * frac));
+          for (let b = 0; b < activeBeats; b++) {
+            playClickSound(b === 0, b * beatSec);
+          }
+        }
 
         document.getElementById('atril-sec-lbl').textContent = `${item.sec.role.toUpperCase()} • ${item.sec.name} (Vuelta ${item.rep}/${item.reps})`;
         document.getElementById('atril-meta-lbl').textContent = item.sec.lyrics || `${ts} • ${bpm} BPM`;
@@ -2878,13 +3100,44 @@
       step();
     }
 
+    function togglePlayInspiration(idx, chordsStr) {
+      if (playbackMode === 'insp' && state.playingInspIdx === idx) {
+        stopAllPlayback();
+        return;
+      }
+      stopAllPlayback();
+      const chords = splitChordsText(chordsStr);
+      if (!chords.length) return;
+      playbackMode = 'insp';
+      state.playingInspIdx = idx;
+      renderInspirationList();
+
+      let cur = 0;
+      let expectedTime = performance.now();
+      const step = () => {
+        if (playbackMode !== 'insp' || state.playingInspIdx !== idx) return;
+        const parsed = parseChordSymbol(chords[cur]);
+        const bpm = Number(state.song.base.bpm) || 112;
+        const ts = state.song.base.timeSig || '4/4';
+        const beats = ts === '3/4' ? 3 : (ts === '2/4' ? 2 : (ts === '6/8' ? 3 : 4));
+        const stepMs = beats * (60000 / bpm);
+        playBarRhythm(parsed, 0, state.song.base.style, ts, bpm, 1);
+        cur = (cur + 1) % chords.length;
+        expectedTime += stepMs;
+        playbackHandle = setTimeout(step, Math.max(20, expectedTime - performance.now()));
+      };
+      step();
+    }
+
     // =========================================================================
-    // 7. GRABADORA, SUBIDA DE AUDIOS, INSPIRACIÓN, BANCO Y PROYECTOS DRIVE
+    // 8. GRABADORA CON OSCILÓMETRO, DRIVE, BORRADO Y PERSISTENCIA
     // =========================================================================
     let mediaRecorder = null;
     let recChunks = [];
     let recTimerInt = null;
     let recStartTime = 0;
+    let recOscRaf = null;
+    let recAnalyser = null;
 
     function renderRecStructureGuide() {
       const box = document.getElementById('rec-structure-guide');
@@ -2896,8 +3149,8 @@
       box.innerHTML = state.song.structure.map(sec => `
         <div class="th-card border rounded-xl p-2.5 text-xs">
           <div class="font-bold th-accent">[${sec.role}] ${sec.name} (x${sec.repeats || 1})</div>
-          <div class="font-mono-code font-bold mt-0.5">${sec.chordsText}</div>
-          ${sec.lyrics ? `<div class="italic th-muted mt-0.5">${sec.lyrics}</div>` : ''}
+          <div class="font-mono-code font-bold mt-0.5 break-words">${sec.chordsText}</div>
+          ${sec.lyrics ? `<div class="italic th-muted mt-0.5 break-words">${sec.lyrics}</div>` : ''}
         </div>
       `).join('');
     }
@@ -2906,49 +3159,124 @@
       const list = document.getElementById('song-takes-list');
       if (!list) return;
       const takes = state.song.takes || [];
+      const tc = document.getElementById('takes-count-lbl');
+      if (tc) tc.textContent = String(takes.length);
       if (!takes.length) {
         list.innerHTML = `<div class="text-xs th-muted">No hay tomas grabadas o subidas todavía.</div>`;
         return;
       }
       list.innerHTML = takes.map(t => `
-        <div class="th-card border rounded-xl p-2.5 space-y-1.5 text-xs">
-          <div class="flex items-center justify-between gap-2">
-            <strong class="truncate">${t.name}</strong>
-            <span class="font-mono-code th-muted shrink-0">${t.duration || ''} • ${t.author || ''}</span>
+        <div class="th-card border rounded-xl p-2.5 space-y-2 text-xs">
+          <div class="flex flex-wrap items-center justify-between gap-1.5 min-w-0">
+            <strong class="truncate max-w-full flex-1 min-w-0">${t.name}</strong>
+            <span class="font-mono-code th-muted shrink-0 text-[11px]">${t.duration || ''} • ${t.author || ''}</span>
           </div>
-          ${t.url ? `<audio controls src="${t.url}" class="w-full h-8"></audio>` : `<div class="text-[11px] th-muted">Audio local de sesión anterior</div>`}
+          ${t.url ? `<audio controls src="${t.url}" class="w-full h-8"></audio>` : `<div class="text-[11px] th-muted">Audio guardado en Drive o sin archivo local</div>`}
+          <div class="flex flex-wrap items-center justify-end gap-1.5">
+            ${t.driveUrl
+              ? `<a href="${t.driveUrl}" target="_blank" rel="noopener" class="px-2.5 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/35 text-emerald-400 font-bold">↗ Drive</a>`
+              : `<button type="button" onclick="uploadTakeToDrive('${t.id}')" class="th-input border hover:border-amber-500 px-2.5 py-1 rounded-lg font-bold th-accent">☁️ Subir a Drive</button>`
+            }
+            <button type="button" onclick="deleteSongTake('${t.id}')" class="th-input border hover:border-rose-500 text-rose-400 px-2.5 py-1 rounded-lg font-bold">🗑 Borrar</button>
+          </div>
         </div>
       `).join('');
     }
 
+    function startRecOscilloscope(stream) {
+      const canvas = document.getElementById('rec-oscilloscope');
+      const c2d = canvas ? canvas.getContext('2d') : null;
+      const ctx = getAudioCtx();
+      if (!ctx || !stream) return;
+      const src = ctx.createMediaStreamSource(stream);
+      recAnalyser = ctx.createAnalyser();
+      recAnalyser.fftSize = 1024;
+      src.connect(recAnalyser);
+      const buf = new Float32Array(recAnalyser.fftSize);
+
+      const draw = () => {
+        if (!recAnalyser) return;
+        recAnalyser.getFloatTimeDomainData(buf);
+        let rms = 0;
+        for (let i = 0; i < buf.length; i++) rms += buf[i] * buf[i];
+        rms = Math.sqrt(rms / buf.length);
+        const pct = Math.min(100, Math.round(rms * 380));
+        const fill = document.getElementById('rec-meter-fill');
+        const lbl = document.getElementById('rec-level-lbl');
+        if (fill) fill.style.width = `${pct}%`;
+        if (lbl) lbl.textContent = `${pct}%`;
+
+        if (c2d && canvas) {
+          const w = canvas.width = canvas.clientWidth || 300;
+          const h = canvas.height = canvas.clientHeight || 80;
+          c2d.clearRect(0, 0, w, h);
+          c2d.strokeStyle = '#f43f5e';
+          c2d.lineWidth = 2;
+          c2d.beginPath();
+          for (let i = 0; i < buf.length; i += 2) {
+            const x = (i / buf.length) * w;
+            const y = (0.5 + buf[i] * 0.45) * h;
+            if (i === 0) c2d.moveTo(x, y);
+            else c2d.lineTo(x, y);
+          }
+          c2d.stroke();
+        }
+        recOscRaf = requestAnimationFrame(draw);
+      };
+      draw();
+    }
+
+    function stopRecOscilloscope() {
+      if (recOscRaf) cancelAnimationFrame(recOscRaf);
+      recOscRaf = null;
+      recAnalyser = null;
+      const fill = document.getElementById('rec-meter-fill');
+      const lbl = document.getElementById('rec-level-lbl');
+      if (fill) fill.style.width = '0%';
+      if (lbl) lbl.textContent = '0%';
+    }
+
     async function startMicRecording(withKaraoke = false) {
+      markCultUnlocked();
+      saveLocalState();
       try {
         const constraints = state.selectedAudioDeviceId
           ? { audio: { deviceId: { exact: state.selectedAudioDeviceId } } }
           : { audio: true };
         const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        state.micGranted = true;
+        markCultUnlocked();
+        updateMicPermissionUI();
         recChunks = [];
         mediaRecorder = new MediaRecorder(stream);
         mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recChunks.push(e.data); };
-        mediaRecorder.onstop = () => {
+        mediaRecorder.onstop = async () => {
+          stopRecOscilloscope();
           stream.getTracks().forEach(t => t.stop());
           const blob = new Blob(recChunks, { type: 'audio/webm' });
           const url = URL.createObjectURL(blob);
           const secs = Math.max(1, Math.round((Date.now() - recStartTime) / 1000));
           const durStr = `${String(Math.floor(secs / 60)).padStart(2, '0')}:${String(secs % 60).padStart(2, '0')}`;
+          const dateStr = new Date().toISOString().slice(0, 10);
+          const safeSong = (state.song.title || 'Cancion').trim().replace(/\s+/g, '_');
+          const safeUser = (state.currentUser?.name || 'Culto').trim().replace(/\s+/g, '_');
+          const id = 'take_' + Date.now();
+          await saveTakeBlobIdb(id, blob);
           state.song.takes.unshift({
-            id: 'take_' + Date.now(),
-            name: `Toma ${(state.song.takes.length || 0) + 1}`,
+            id,
+            name: `${dateStr}_${safeSong}_${safeUser}`,
             author: state.currentUser?.name || 'Culto',
             duration: durStr,
             url,
+            driveUrl: '',
             createdAt: Date.now()
           });
           renderSongTakesList();
           saveLocalState();
-          showToast('🎙️ Toma guardada en la canción');
+          showToast('🎙️ Toma guardada localmente');
         };
         mediaRecorder.start();
+        startRecOscilloscope(stream);
         recStartTime = Date.now();
         document.getElementById('btn-rec-start').disabled = true;
         document.getElementById('btn-rec-karaoke').disabled = true;
@@ -2967,6 +3295,7 @@
     function stopMicRecording() {
       if (recTimerInt) clearInterval(recTimerInt);
       recTimerInt = null;
+      stopRecOscilloscope();
       if (mediaRecorder && mediaRecorder.state !== 'inactive') {
         mediaRecorder.stop();
       }
@@ -2980,18 +3309,21 @@
     function handleUploadTakes(ev) {
       const files = Array.from(ev.target.files || []);
       if (!files.length) return;
-      files.forEach(file => {
+      files.forEach(async file => {
+        const id = 'up_' + Date.now() + '_' + Math.random().toString(36).slice(2, 5);
+        await saveTakeBlobIdb(id, file);
         const url = URL.createObjectURL(file);
         const audio = new Audio(url);
         audio.onloadedmetadata = () => {
           const secs = Math.round(audio.duration || 0);
           const durStr = secs ? `${String(Math.floor(secs / 60)).padStart(2, '0')}:${String(secs % 60).padStart(2, '0')}` : 'Audio';
           state.song.takes.unshift({
-            id: 'up_' + Date.now() + '_' + Math.random().toString(36).slice(2, 5),
+            id,
             name: file.name,
             author: state.currentUser?.name || 'Subido',
             duration: durStr,
             url,
+            driveUrl: '',
             createdAt: Date.now()
           });
           renderSongTakesList();
@@ -3002,7 +3334,58 @@
       showToast(`📁 ${files.length} grabación(es) añadida(s)`);
     }
 
-    // Inspiración y Banco
+    async function uploadTakeToDrive(takeId) {
+      const take = (state.song.takes || []).find(t => t.id === takeId);
+      if (!take) return;
+      const blob = await getTakeBlobIdb(takeId);
+      if (!blob) {
+        showToast('⚠️ No se encontró el archivo de audio local');
+        return;
+      }
+      showToast('☁️ Subiendo audio a Google Drive...');
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        try {
+          const base64 = String(reader.result || '').split(',')[1] || '';
+          const res = await fetch(GAS_WEBAPP_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({
+              action: 'uploadAudioTake',
+              fileName: `${take.name}.webm`,
+              mimeType: blob.type || 'audio/webm',
+              songTitle: state.song.title || 'Cancion',
+              author: take.author || 'Culto',
+              base64Data: base64
+            })
+          });
+          let driveUrl = '';
+          try {
+            const json = await res.json();
+            driveUrl = json.url || json.fileUrl || '';
+          } catch (e) {}
+          take.driveUrl = driveUrl || GAS_WEBAPP_URL;
+          renderSongTakesList();
+          saveLocalState();
+          showToast('☁️ Toma enviada a Google Drive');
+        } catch (e) {
+          showToast('⚠️ Error al subir a Drive');
+        }
+      };
+      reader.readAsDataURL(blob);
+    }
+
+    async function deleteSongTake(takeId) {
+      await deleteTakeBlobIdb(takeId);
+      state.song.takes = (state.song.takes || []).filter(t => t.id !== takeId);
+      renderSongTakesList();
+      saveLocalState();
+      showToast('🗑 Toma eliminada');
+    }
+
+    // =========================================================================
+    // 9. INSPIRACIÓN, BANCO Y PROYECTOS EN DRIVE
+    // =========================================================================
     function setInspFilter(role) {
       state.inspRoleFilter = role;
       document.querySelectorAll('#insp-filters button').forEach(b => {
@@ -3034,15 +3417,21 @@
         { role: 'Estrofa', title: 'Balada Oscura (i - bVII - bVI - V7)', chords: `${r}m - ${iv(10)} - ${iv(8)} - ${iv(7)}7` }
       ];
       const filtered = state.inspRoleFilter === 'all' ? templates : templates.filter(t => t.role === state.inspRoleFilter);
-      box.innerHTML = filtered.map(t => `
-        <div class="th-card border rounded-xl p-2.5 flex items-center justify-between gap-2 text-xs">
-          <div>
-            <span class="font-bold th-accent">[${t.role}]</span> <strong>${t.title}</strong>
-            <div class="font-mono-code th-muted mt-0.5">${t.chords}</div>
+      box.innerHTML = filtered.map((t, idx) => {
+        const isPlaying = playbackMode === 'insp' && state.playingInspIdx === idx;
+        return `
+          <div class="th-card border rounded-xl p-2.5 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 text-xs">
+            <div class="min-w-0 flex-1">
+              <div class="break-words"><span class="font-bold th-accent">[${t.role}]</span> <strong>${t.title}</strong></div>
+              <div class="font-mono-code th-muted mt-0.5 truncate">${t.chords}</div>
+            </div>
+            <div class="flex items-center gap-1.5 shrink-0">
+              <button type="button" onclick="togglePlayInspiration(${idx}, '${t.chords}')" class="px-2.5 py-1.5 rounded-lg font-bold ${isPlaying ? 'bg-rose-600 text-white' : 'bg-amber-500 text-stone-950'}">${isPlaying ? '■' : '▶'}</button>
+              <button type="button" onclick="applyProgressionToBase('${t.chords}')" class="th-input border hover:border-amber-500 px-2.5 py-1.5 rounded-lg font-bold">Usar</button>
+            </div>
           </div>
-          <button type="button" onclick="applyProgressionToBase('${t.chords}')" class="th-input border hover:border-amber-500 px-2.5 py-1.5 rounded-lg font-bold shrink-0">Usar</button>
-        </div>
-      `).join('');
+        `;
+      }).join('');
     }
 
     function applyProgressionToBase(chordsStr) {
@@ -3073,10 +3462,10 @@
       const box = document.getElementById('bank-list');
       if (!box) return;
       box.innerHTML = state.bank.map(b => `
-        <div class="th-card border rounded-xl p-2.5 flex items-center justify-between gap-2 text-xs">
-          <div>
-            <strong>${b.name}</strong>
-            <div class="font-mono-code th-accent mt-0.5">${b.chordsText}</div>
+        <div class="th-card border rounded-xl p-2.5 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 text-xs">
+          <div class="min-w-0 flex-1">
+            <strong class="block break-words">${b.name}</strong>
+            <div class="font-mono-code th-accent mt-0.5 truncate">${b.chordsText}</div>
           </div>
           <button type="button" onclick="applyProgressionToBase('${b.chordsText}')" class="th-input border hover:border-amber-500 px-2.5 py-1.5 rounded-lg font-bold shrink-0">Cargar</button>
         </div>
@@ -3134,6 +3523,8 @@
       document.getElementById('base-style-select').value = state.song.base.style || 'folk';
       document.getElementById('base-timesig-select').value = state.song.base.timeSig || '4/4';
       document.getElementById('base-bpm-input').value = String(state.song.base.bpm || 112);
+      const structInp = document.getElementById('struct-bpm-input');
+      if (structInp) structInp.value = String(state.song.base.bpm || 112);
       document.getElementById('global-bpm-lbl').textContent = `${state.song.base.bpm || 112} BPM`;
       populateQuickChordSelect();
       updateStyleDescBanner();
@@ -3141,12 +3532,12 @@
       renderStructureList();
       renderRecStructureGuide();
       renderSongTakesList();
+      hydrateTakesFromIdb();
       renderInspirationList();
       renderBankList();
       updateLockUI();
     }
 
-    // Proyectos en Nube / Local / JSON
     function openSongsModal() {
       renderSongsModalList();
       document.getElementById('songs-modal').classList.remove('hidden');
@@ -3164,12 +3555,12 @@
         return;
       }
       box.innerHTML = state.projects.map(p => `
-        <div class="th-subcard border rounded-xl p-3 flex items-center justify-between gap-2 text-xs">
-          <div>
-            <div class="font-bold text-sm">${p.title || 'Sin título'}</div>
+        <div class="th-subcard border rounded-xl p-3 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 text-xs">
+          <div class="min-w-0 flex-1">
+            <div class="font-bold text-sm break-words">${p.title || 'Sin título'}</div>
             <div class="th-muted">${p.folder || 'Repertorio Activo'} • ${p.base?.bpm || 112} BPM</div>
           </div>
-          <div class="flex items-center gap-1.5">
+          <div class="flex items-center gap-1.5 shrink-0">
             <button type="button" onclick="loadProjectById('${p.id}')" class="bg-amber-500 text-stone-950 font-bold px-3 py-1.5 rounded-lg">Abrir</button>
             <button type="button" onclick="deleteProjectById('${p.id}')" class="th-input border text-rose-400 font-bold px-2.5 py-1.5 rounded-lg">✕</button>
           </div>
@@ -3191,12 +3582,12 @@
               <span class="text-xs font-mono-code th-accent font-bold">${items.length} temas</span>
             </div>
             ${items.length ? items.map(p => `
-              <div class="th-card border rounded-xl p-3 flex items-center justify-between gap-2 text-xs">
-                <div>
-                  <strong class="text-sm">${p.title}</strong>
-                  <div class="font-mono-code th-muted">${p.base?.chordsText || ''} • ${p.base?.bpm || 112} BPM</div>
+              <div class="th-card border rounded-xl p-3 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 text-xs">
+                <div class="min-w-0 flex-1">
+                  <strong class="text-sm block break-words">${p.title}</strong>
+                  <div class="font-mono-code th-muted truncate">${p.base?.chordsText || ''} • ${p.base?.bpm || 112} BPM</div>
                 </div>
-                <button type="button" onclick="loadProjectById('${p.id}'); switchTab('componer');" class="bg-amber-500 text-stone-950 font-bold px-3 py-1.5 rounded-xl">Abrir en Estudio</button>
+                <button type="button" onclick="loadProjectById('${p.id}'); switchTab('componer');" class="bg-amber-500 text-stone-950 font-bold px-3 py-1.5 rounded-xl shrink-0">Abrir en Estudio</button>
               </div>
             `).join('') : `<div class="text-xs th-muted">Carpeta vacía</div>`}
           </div>
@@ -3208,6 +3599,7 @@
       const found = state.projects.find(p => p.id === id);
       if (!found) return;
       state.song = JSON.parse(JSON.stringify(found));
+      if (!Array.isArray(state.song.takes)) state.song.takes = [];
       applySongToUI();
       recordSongHistory(true);
       saveLocalState();
@@ -3299,7 +3691,7 @@
     }
 
     // =========================================================================
-    // 8. DICCIONARIO DE ACORDES, DETECTOR DE MÁSTIL Y MODOS/ESCALAS
+    // 10. DICCIONARIO, DETECTOR (CON CEJILLA Y CUERDA MUDA) Y ESCALAS
     // =========================================================================
     function setDictRoot(r) {
       state.dictRoot = r;
@@ -3339,10 +3731,10 @@
           cards.push(`
             <button type="button" onclick="playChordStrum([${frets.join(',')}], 0, 'down', 1.1, 0.23)" class="chord-pill-big text-center space-y-1.5">
               <div class="flex items-center justify-between text-[10px] font-mono-code th-muted">
-                <span>${frets.join('-')}</span>
-                <span>#${idx + 1}</span>
+                <span class="truncate">${frets.join('-')}</span>
+                <span class="shrink-0">#${idx + 1}</span>
               </div>
-              <div class="font-serif-title text-lg font-extrabold th-accent">${parsed.display}</div>
+              <div class="font-serif-title text-base sm:text-lg font-extrabold th-accent truncate">${parsed.display}</div>
               ${renderChordSvg(frets, true)}
             </button>
           `);
@@ -3354,7 +3746,7 @@
       if (badge) badge.textContent = `${cards.length} posturas`;
     }
 
-    // Detector de mástil
+    // Detector de mástil con el diseño de Escalas, cejilla al pulsar traste y muteo fiable
     function renderFretboardDetector() {
       const wrap = document.getElementById('fretboard-detector-wrap');
       if (!wrap) return;
@@ -3366,16 +3758,24 @@
 
       let html = `<table class="w-full text-center border-collapse text-xs font-mono-code"><thead><tr><th class="p-1.5 th-muted">Cuerda</th>`;
       for (let f = 0; f <= maxFret; f++) {
-        html += `<th class="p-1.5 th-muted">${f}</th>`;
+        html += `<th class="p-1"><button type="button" onclick="applyDetectorBarre(${f})" title="Colocar cejilla en traste ${f}" class="w-7 h-7 rounded-lg th-subcard border hover:border-amber-500 hover:text-amber-400 font-bold th-muted">${f}</button></th>`;
       }
       html += `</tr></thead><tbody>`;
 
       openMidis.forEach((om, sIdx) => {
-        html += `<tr class="border-t" style="border-color: var(--border-main);"><td class="p-2 font-bold th-accent">${midiToNote(om)}</td>`;
+        const curFret = state.detectorFrets[sIdx];
+        const isMuted = curFret === -1;
+        html += `<tr class="border-t" style="border-color: var(--border-main);">
+          <td class="p-1.5 whitespace-nowrap">
+            <div class="inline-flex items-center gap-1">
+              <span class="font-bold ${isMuted ? 'th-muted line-through' : 'th-accent'}">${midiToNote(om)}</span>
+              <button type="button" onclick="toggleDetectorStringMute(${sIdx})" title="${isMuted ? 'Activar cuerda' : 'Silenciar cuerda'}" class="px-1.5 py-0.5 rounded-md text-[10px] font-bold border ${isMuted ? 'bg-rose-600/20 border-rose-500 text-rose-400' : 'th-subcard hover:border-amber-500 th-muted'}">${isMuted ? '✕' : '🔊'}</button>
+            </div>
+          </td>`;
         for (let f = 0; f <= maxFret; f++) {
-          const active = state.detectorFrets[sIdx] === f;
+          const active = curFret === f;
           const note = NOTES_SHARP[(om + f) % 12];
-          html += `<td class="p-1"><button type="button" onclick="toggleDetectorFret(${sIdx}, ${f})" class="w-8 h-8 rounded-full font-bold transition-all ${active ? 'bg-amber-500 text-stone-950 scale-105' : 'th-subcard border hover:border-amber-500 th-muted'}">${note}</button></td>`;
+          html += `<td class="p-1"><button type="button" onclick="toggleDetectorFret(${sIdx}, ${f})" class="w-8 h-8 rounded-full font-extrabold transition-all ${active ? 'bg-amber-500 text-stone-950 scale-105' : (isMuted ? 'opacity-25 th-subcard border' : 'bg-amber-500/10 border border-amber-500/30 th-muted hover:border-amber-500')}">${note}</button></td>`;
         }
         html += `</tr>`;
       });
@@ -3384,10 +3784,29 @@
       identifyDetectedChord();
     }
 
+    function applyDetectorBarre(fret) {
+      const openMidis = getOpenStringsMidi();
+      state.detectorFrets = new Array(openMidis.length).fill(fret);
+      renderFretboardDetector();
+      playDetectedChord();
+    }
+
+    function toggleDetectorStringMute(sIdx) {
+      state.detectorFrets[sIdx] = state.detectorFrets[sIdx] === -1 ? 0 : -1;
+      if (state.detectorFrets[sIdx] === -1) playPercussiveMute(0, 0.22);
+      else playPluckNote(getOpenStringsMidi()[sIdx], 0, 0.7, 0.22);
+      renderFretboardDetector();
+    }
+
     function toggleDetectorFret(sIdx, fret) {
-      state.detectorFrets[sIdx] = fret;
-      const om = getOpenStringsMidi()[sIdx];
-      playPluckNote(om + fret, 0, 0.9, 0.24);
+      if (state.detectorFrets[sIdx] === fret) {
+        state.detectorFrets[sIdx] = -1;
+        playPercussiveMute(0, 0.22);
+      } else {
+        state.detectorFrets[sIdx] = fret;
+        const om = getOpenStringsMidi()[sIdx];
+        playPluckNote(om + fret, 0, 0.9, 0.24);
+      }
       renderFretboardDetector();
     }
 
@@ -3398,10 +3817,10 @@
 
     function identifyDetectedChord() {
       const openMidis = getOpenStringsMidi();
-      const pcs = [...new Set(state.detectorFrets.map((f, i) => (openMidis[i] + f) % 12))];
-      const notesLbl = document.getElementById('detected-notes-lbl');
-      const nameEl = document.getElementById('detected-chord-name');
-      if (notesLbl) notesLbl.textContent = `Notas sonando: ${pcs.map(p => NOTES_SHARP[p]).join(' - ')}`;
+      const activePairs = state.detectorFrets
+        .map((f, i) => ({ f, midi: openMidis[i] + f, sIdx: i }))
+        .filter(x => x.f >= 0);
+      const pcs = [...new Set(activePairs.map(x => x.midi % 12))];
 
       let best = '--';
       for (const rootPc of pcs) {
@@ -3414,7 +3833,21 @@
         }
         if (best !== '--') break;
       }
-      if (nameEl) nameEl.textContent = best;
+
+      state.detectedChordName = best;
+      const badgesWrap = document.getElementById('detector-notes-badges');
+      const infoWrap = document.getElementById('detector-chord-info');
+      if (badgesWrap) {
+        badgesWrap.innerHTML = `<span class="px-3.5 py-2 rounded-full text-xs font-extrabold bg-amber-500 text-stone-950">${best}</span>` +
+          pcs.map(pc => `<span class="px-3 py-2 rounded-full text-xs font-extrabold th-subcard border th-accent">${NOTES_SHARP[pc]}</span>`).join('');
+      }
+      if (infoWrap) {
+        const fretsStr = state.detectorFrets.map(f => (f === -1 ? 'X' : f)).join(' - ');
+        infoWrap.innerHTML = `
+          <div><strong class="th-accent">Acorde detectado: ${best}</strong> • Trastes: <span class="font-mono-code">${fretsStr}</span></div>
+          <div class="th-muted">Notas activas: ${pcs.length ? pcs.map(p => NOTES_SHARP[p]).join(' - ') : 'Todas las cuerdas mudas'}</div>
+        `;
+      }
     }
 
     function playDetectedChord() {
@@ -3422,13 +3855,25 @@
     }
 
     function addDetectedChordToBase() {
-      const name = document.getElementById('detected-chord-name')?.textContent;
+      const name = state.detectedChordName;
       if (!name || name === '--') return;
       appendChordTokenWithAutoFraction(name);
       switchTab('componer');
     }
 
-    // Modos y escalas
+    // Modos y escalas con subida, bajada e iluminación individual
+    let scalePlayTimers = [];
+    let isScalePlaying = false;
+
+    function stopScalePlayback() {
+      scalePlayTimers.forEach(t => clearTimeout(t));
+      scalePlayTimers = [];
+      isScalePlaying = false;
+      document.querySelectorAll('.scale-cell-playing').forEach(el => el.classList.remove('scale-cell-playing'));
+      const btn = document.getElementById('btn-play-scale');
+      if (btn) btn.textContent = '▶ Escuchar Escala';
+    }
+
     function initModeSelectors() {
       const rootSel = document.getElementById('mode-root-select');
       if (rootSel && !rootSel.options.length) {
@@ -3439,6 +3884,7 @@
     }
 
     function selectModeRootFromBadge(note) {
+      stopScalePlayback();
       const rootSel = document.getElementById('mode-root-select');
       if (rootSel) rootSel.value = note;
       const pc = NOTES_SHARP.indexOf(note);
@@ -3447,6 +3893,7 @@
     }
 
     function renderModeFretboard() {
+      stopScalePlayback();
       const rootSel = document.getElementById('mode-root-select');
       const scaleSel = document.getElementById('mode-scale-select');
       const badgesWrap = document.getElementById('mode-notes-badges');
@@ -3482,7 +3929,7 @@
       for (let f = 0; f <= maxFret; f++) html += `<th class="p-1.5 th-muted">${f}</th>`;
       html += `</tr></thead><tbody>`;
 
-      openMidis.forEach(om => {
+      openMidis.forEach((om, sIdx) => {
         html += `<tr class="border-t" style="border-color: var(--border-main);"><td class="p-2 font-bold th-accent">${midiToNote(om)}</td>`;
         for (let f = 0; f <= maxFret; f++) {
           const midi = om + f;
@@ -3492,7 +3939,7 @@
           const note = NOTES_SHARP[pc];
           html += `<td class="p-1">${
             inScale
-              ? `<button type="button" onclick="playPluckNote(${midi}, 0, 0.9, 0.24)" class="w-8 h-8 rounded-full font-extrabold ${isRoot ? 'bg-amber-500 text-stone-950' : 'bg-amber-500/20 border border-amber-500/50 th-accent'}">${note}</button>`
+              ? `<button id="scale-cell-${sIdx}-${f}" data-midi="${midi}" type="button" onclick="playPluckNote(${midi}, 0, 0.9, 0.24)" class="w-8 h-8 rounded-full font-extrabold transition-all ${isRoot ? 'bg-amber-500 text-stone-950' : 'bg-amber-500/20 border border-amber-500/50 th-accent'}">${note}</button>`
               : `<span class="text-[10px] opacity-25">·</span>`
           }</td>`;
         }
@@ -3503,15 +3950,73 @@
     }
 
     function playCurrentScale() {
+      if (isScalePlaying) {
+        stopScalePlayback();
+        return;
+      }
       const root = document.getElementById('mode-root-select')?.value || 'D';
       const scaleKey = document.getElementById('mode-scale-select')?.value || 'mixolydian';
       const scaleObj = SCALES_DATA[scaleKey] || SCALES_DATA.mixolydian;
-      const baseMidi = noteToMidi(root + '4');
-      [...scaleObj.intervals, 12].forEach((iv, idx) => {
-        playPluckNote(baseMidi + iv, idx * 0.24, 0.65, 0.24);
+      const openMidis = getOpenStringsMidi();
+      const maxFret = (INSTRUMENTS[state.inst]?.maxFret) || 12;
+      const rootPc = NOTES_SHARP.indexOf(root);
+
+      const minMidi = Math.min(...openMidis);
+      let startMidi = minMidi;
+      while (startMidi % 12 !== rootPc) startMidi++;
+
+      const ascMidis = [...scaleObj.intervals, 12].map(iv => startMidi + iv);
+      const seqMidis = [...ascMidis, ...ascMidis.slice(0, -1).reverse()];
+
+      const findCellForMidi = (targetMidi) => {
+        let best = null;
+        openMidis.forEach((om, sIdx) => {
+          const f = targetMidi - om;
+          if (f >= 0 && f <= maxFret) {
+            if (!best || f < best.f) best = { sIdx, f };
+          }
+        });
+        if (!best) {
+          const pc = ((targetMidi % 12) + 12) % 12;
+          openMidis.forEach((om, sIdx) => {
+            for (let f = 0; f <= maxFret; f++) {
+              if ((om + f) % 12 === pc && (!best || f < best.f)) {
+                best = { sIdx, f };
+                break;
+              }
+            }
+          });
+        }
+        return best;
+      };
+
+      isScalePlaying = true;
+      const btn = document.getElementById('btn-play-scale');
+      if (btn) btn.textContent = '■ Parar Escala';
+
+      const stepMs = 240;
+      seqMidis.forEach((midi, idx) => {
+        const timer = setTimeout(() => {
+          if (!isScalePlaying) return;
+          document.querySelectorAll('.scale-cell-playing').forEach(el => el.classList.remove('scale-cell-playing'));
+          const cellPos = findCellForMidi(midi);
+          if (cellPos) {
+            document.getElementById(`scale-cell-${cellPos.sIdx}-${cellPos.f}`)?.classList.add('scale-cell-playing');
+          }
+          playPluckNote(midi, 0, 0.55, 0.25);
+        }, idx * stepMs);
+        scalePlayTimers.push(timer);
       });
+
+      const endTimer = setTimeout(() => {
+        stopScalePlayback();
+      }, seqMidis.length * stepMs + 220);
+      scalePlayTimers.push(endTimer);
     }
 
+    // =========================================================================
+    // 11. IMPRESIÓN DE HOJA PDF Y ARRANQUE
+    // =========================================================================
     function printSongSheet() {
       const win = window.open('', '_blank');
       if (!win) return;
@@ -3570,11 +4075,19 @@
       if (navigator.permissions && navigator.permissions.query) {
         try {
           const perm = await navigator.permissions.query({ name: 'microphone' });
-          if (perm.state === 'granted') state.micGranted = true;
-          else if (perm.state === 'denied') state.micGranted = false;
+          if (perm.state === 'granted') {
+            state.micGranted = true;
+            markCultUnlocked();
+          } else if (perm.state === 'denied') {
+            state.micGranted = false;
+          }
           perm.onchange = () => {
-            if (perm.state === 'granted') state.micGranted = true;
-            if (perm.state === 'denied') state.micGranted = false;
+            if (perm.state === 'granted') {
+              state.micGranted = true;
+              markCultUnlocked();
+            } else if (perm.state === 'denied') {
+              state.micGranted = false;
+            }
             updateMicPermissionUI();
             saveLocalState();
           };
