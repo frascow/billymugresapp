@@ -243,6 +243,10 @@
           <span>⏱️ Metrónomo</span>
         </button>
 
+        <button type="button" onclick="panicStopAllAudio()" title="Detener todo sonido, reproducción, metrónomo y escala" class="bg-rose-600 hover:bg-rose-500 text-white text-xs sm:text-sm font-bold px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl shadow-sm inline-flex items-center gap-1 whitespace-nowrap">
+          <span>🔇 Parar</span>
+        </button>
+
         <button type="button" onclick="openSongsModal()" class="th-input border hover:border-amber-500 text-xs sm:text-sm font-bold px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl inline-flex items-center gap-1.5 whitespace-nowrap">
           📂 Canciones (<span id="songs-count-lbl">0</span>)
         </button>
@@ -433,6 +437,15 @@
             <option value="quarterPower">⚡ Negras con Fuerza</option>
             <option value="waltz">💃 Vals 3/4</option>
             <option value="jig">🍀 Jig 6/8</option>
+            <option value="balkan">🎺 Balkan / Klezmer</option>
+            <option value="rumba">🔥 Rumba Acústica</option>
+            <option value="boogie">🚂 Boogie Shuffle</option>
+            <option value="secondline">🥁 Second Line NOLA</option>
+            <option value="calypso">🏝️ Calypso / Isleno</option>
+            <option value="tarantella">🕷️ Tarantella Frenética</option>
+            <option value="western">🌵 Western Cavalcade</option>
+            <option value="funkchop">⚡ Funk Chop Sincopado</option>
+            <option value="marche">🥁 Marcha Redoble</option>
           </select>
           <select id="base-timesig-select" onchange="onBaseConfigChange(false)" class="sm:col-span-1 th-input border rounded-xl px-2 py-2.5 text-sm font-bold text-center">
             <option value="4/4">4/4</option>
@@ -536,6 +549,15 @@
               <option value="quarterPower">⚡ Negras con Fuerza</option>
               <option value="waltz">💃 Vals 3/4</option>
               <option value="jig">🍀 Jig 6/8</option>
+              <option value="balkan">🎺 Balkan / Klezmer</option>
+              <option value="rumba">🔥 Rumba Acústica</option>
+              <option value="boogie">🚂 Boogie Shuffle</option>
+              <option value="secondline">🥁 Second Line NOLA</option>
+              <option value="calypso">🏝️ Calypso / Isleno</option>
+              <option value="tarantella">🕷️ Tarantella Frenética</option>
+              <option value="western">🌵 Western Cavalcade</option>
+              <option value="funkchop">⚡ Funk Chop Sincopado</option>
+              <option value="marche">🥁 Marcha Redoble</option>
             </select>
             <button type="button" onclick="openVersionImporterModal('search')" class="th-input border border-amber-500/50 hover:border-amber-500 th-accent font-bold px-3.5 py-2.5 rounded-xl text-xs sm:text-sm">📥 Importar Versión</button>
             <button type="button" id="btn-play-all" onclick="togglePlayAllStructure(-1)" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-2.5 rounded-xl shadow-sm text-xs sm:text-sm">▶ Tocar Todo (Karaoke)</button>
@@ -1113,6 +1135,15 @@
             <option value="quarterPower">Negras fuerza</option>
             <option value="waltz">Vals 3/4</option>
             <option value="jig">Jig 6/8</option>
+            <option value="balkan">Balkan / Klezmer</option>
+            <option value="rumba">Rumba Acústica</option>
+            <option value="boogie">Boogie Shuffle</option>
+            <option value="secondline">Second Line NOLA</option>
+            <option value="calypso">Calypso / Isleño</option>
+            <option value="tarantella">Tarantella Frenética</option>
+            <option value="western">Western Cavalcade</option>
+            <option value="funkchop">Funk Chop Sincopado</option>
+            <option value="marche">Marcha Redoble</option>
           </select>
         </div>
       </div>
@@ -1513,7 +1544,16 @@
       quarterMute: '1 (Mute!) • 2 (Mute!) • 3 (Mute!) • 4 (Mute!)',
       quarterPower: '1 (Fuerte ↓) • 2 (Fuerte ↓) • 3 (Fuerte ↓) • 4 (Fuerte ↓)',
       waltz: '1 (Bajo fuerte) • 2 (Rasgueo suave) • 3 (Rasgueo suave)',
-      jig: '1-2-3 (Acento ↓ ↑ ↓) • 4-5-6 (Acento ↓ ↑ ↓)'
+      jig: '1-2-3 (Acento ↓ ↑ ↓) • 4-5-6 (Acento ↓ ↑ ↓)',
+      balkan: '1 (Bajo I) • 1y (↑) • 2 (Chop!) • 3 (Bajo V) • 3y (↑) • 4 (Bajo V) • 4y (↑)',
+      rumba: '1 (Bajo ↓) • 1y (↑) • 2 (Golpe Mute!) • 2y (↑) • 3 (↑ abierto) • 3y (↓) • 4 (Mute!) • 4y (↑)',
+      boogie: '1 (Bajo I) • 1a (Bajo ↑) • 2 (Chop V) • 2a (↑) • 3 (Bajo VI) • 3a (↑) • 4 (Chop V) • 4a (↑)',
+      secondline: '1 (Bajo) • 1y (↑) • 2 (↓) • 2a (↑) • 3y (↑ sincopado) • 4 (Chop!)',
+      calypso: '1 (Bajo ↓) • 2 (↓) • 2y (↑) • 3y (↑) • 4 (↓) • 4y (↑)',
+      tarantella: '1-2-3 (↓↓↑ rápido) • 4-5-6 (↓↓↑ rápido)',
+      western: '1 (Bajo I) • 1e-1a (↓↓ Galope) • 2 (Chop!) • 3 (Bajo V) • 3e-3a (↓↓ Galope) • 4 (Chop!)',
+      funkchop: '1 (Bajo seco) • 1e (Mute) • 1y (↑) • 2 (Chop!) • 2a (↑) • 3y (↑) • 4 (Chop!) • 4e (Mute)',
+      marche: '1 (Bajo I) • 2 (Redoble ↓↓) • 3 (Bajo V) • 4 (Redoble ↓↓)'
     };
 
     const SECTION_PALETTE = [
@@ -2776,8 +2816,112 @@
             playChordStrum(frets, t, 'down', beatSec * 0.85, 0.27, false, bus);
             break;
 
+          case 'balkan':
+            if (b === 0) {
+              playBassRoot(parsedChord, t, false, 0.38, bus);
+              playChordStrum(frets, t + half, 'up', half * 0.7, 0.21, true, bus);
+            } else if (b === 1) {
+              playPercussiveMute(t, 0.30, bus);
+            } else {
+              playBassRoot(parsedChord, t, true, 0.35, bus);
+              playChordStrum(frets, t + half, 'up', half * 0.72, 0.22, true, bus);
+            }
+            break;
+
+          case 'rumba':
+            if (b === 0) {
+              playBassRoot(parsedChord, t, false, 0.36, bus);
+              playChordStrum(frets, t + half, 'up', half * 0.85, 0.20, true, bus);
+            } else if (b === 1 || isLastBeat) {
+              playPercussiveMute(t, 0.30, bus);
+              playChordStrum(frets, t + half, 'up', half * 0.85, 0.21, true, bus);
+            } else {
+              playChordStrum(frets, t, 'up', half * 0.9, 0.22, false, bus);
+              playChordStrum(frets, t + half, 'down', half * 0.9, 0.23, false, bus);
+            }
+            break;
+
+          case 'boogie': {
+            const swingOff = beatSec * 0.66;
+            const oct = state.inst === 'bass' ? '2' : '3';
+            const rMidi = noteToMidi(parsedChord.root + oct);
+            const walkMidi = b === 0 ? rMidi : (b === 1 ? rMidi + 4 : (b === 2 ? rMidi + 7 : rMidi + 9));
+            playPluckNote(walkMidi, t, beatSec * 0.62, 0.34, bus);
+            if (!isEvenBeat) {
+              playPercussiveMute(t, 0.24, bus);
+            }
+            playChordStrum(frets, t + swingOff, 'up', beatSec * 0.32, 0.19, true, bus);
+            break;
+          }
+
+          case 'secondline':
+            if (b === 0) {
+              playBassRoot(parsedChord, t, false, 0.38, bus);
+              playChordStrum(frets, t + half, 'up', half * 0.8, 0.20, true, bus);
+            } else if (b === 1) {
+              playChordStrum(frets, t, 'down', beatSec * 0.65, 0.23, false, bus);
+              playChordStrum(frets, t + beatSec * 0.66, 'up', beatSec * 0.32, 0.19, true, bus);
+            } else if (b === 2 && baseBeats > 3) {
+              playChordStrum(frets, t + half, 'up', half * 0.85, 0.24, false, bus);
+            } else {
+              playPercussiveMute(t, 0.31, bus);
+            }
+            break;
+
+          case 'calypso':
+            if (b === 0) {
+              playBassRoot(parsedChord, t, false, 0.36, bus);
+            } else if (b === 2 && baseBeats > 3) {
+              playChordStrum(frets, t + half, 'up', half * 0.9, 0.22, true, bus);
+            } else {
+              playChordStrum(frets, t, 'down', half * 0.9, 0.23, false, bus);
+              playChordStrum(frets, t + half, 'up', half * 0.9, 0.20, true, bus);
+            }
+            break;
+
+          case 'tarantella': {
+            const third = beatSec / 3;
+            playChordStrum(frets, t, 'down', third * 0.95, 0.27, false, bus);
+            playChordStrum(frets, t + third, 'down', third * 0.85, 0.17, true, bus);
+            playChordStrum(frets, t + third * 2, 'up', third * 0.9, 0.21, true, bus);
+            break;
+          }
+
+          case 'western':
+            if (isEvenBeat) {
+              playBassRoot(parsedChord, t, useFifth, 0.36, bus);
+              playChordStrum(frets, t + half, 'down', quarter * 0.9, 0.18, true, bus);
+              playChordStrum(frets, t + half + quarter, 'up', quarter * 0.9, 0.20, true, bus);
+            } else {
+              playPercussiveMute(t, 0.30, bus);
+            }
+            break;
+
+          case 'funkchop':
+            if (b === 0) {
+              playBassRoot(parsedChord, t, false, 0.36, bus);
+              playPercussiveMute(t + quarter, 0.18, bus);
+              playChordStrum(frets, t + half, 'up', half * 0.45, 0.21, true, bus);
+            } else if (isEvenBeat) {
+              playPercussiveMute(t, 0.19, bus);
+              playChordStrum(frets, t + half, 'up', half * 0.45, 0.22, true, bus);
+            } else {
+              playPercussiveMute(t, 0.30, bus);
+              playChordStrum(frets, t + beatSec * 0.75, 'up', quarter * 0.85, 0.20, true, bus);
+            }
+            break;
+
+          case 'marche':
+            if (isEvenBeat) {
+              playBassRoot(parsedChord, t, useFifth, 0.38, bus);
+            } else {
+              playChordStrum(frets, t, 'down', half * 0.85, 0.24, false, bus);
+              playChordStrum(frets, t + half, 'down', half * 0.85, 0.21, true, bus);
+            }
+            break;
+
           default:
-            if (isEvenBeat) playBassRoot(parsedChord, t, useFifth, 0.35, bus);
+            if (isEvenBeat) playBassRoot(parsedChord, t, b === 2, 0.35, bus);
             else playChordStrum(frets, t, 'down', beatSec * 0.72, 0.22, false, bus);
             break;
         }
@@ -2835,27 +2979,27 @@
         renderMetronomeControls(-1);
         return;
       }
-      metroBeatIdx = 0;
-      const tick = () => {
-        const timeSig = state.song.base.timeSig || '4/4';
-        const beats = timeSig === '3/4' ? 3 : (timeSig === '2/4' ? 2 : (timeSig === '6/8' ? 6 : 4));
-        const accentChk = document.getElementById('metro-accent-chk');
-        const isAccent = (metroBeatIdx % beats === 0) && (!accentChk || accentChk.checked);
-        playClickSound(isAccent);
-        renderMetronomeControls(metroBeatIdx % beats);
-        metroBeatIdx++;
-      };
-      const bpm = Number(state.song.base.bpm) || 112;
-      const stepMs = (state.song.base.timeSig === '6/8') ? (30000 / bpm) : (60000 / bpm);
-      document.getElementById('metro-led')?.classList.replace('bg-stone-500', 'bg-emerald-400');
-      const pill = document.getElementById('metro-status-pill');
-      if (pill) pill.textContent = 'Activo';
-      const btn = document.getElementById('btn-metro-panel');
-      if (btn) btn.textContent = '■ Detener';
       ensureAudioReady().then(() => {
         if (metroTimer) return;
+        metroBeatIdx = 0;
+        const tick = () => {
+          const timeSig = state.song.base.timeSig || '4/4';
+          const beats = timeSig === '3/4' ? 3 : (timeSig === '2/4' ? 2 : (timeSig === '6/8' ? 6 : 4));
+          const accentChk = document.getElementById('metro-accent-chk');
+          const isAccent = (metroBeatIdx % beats === 0) && (!accentChk || accentChk.checked);
+          playClickSound(isAccent);
+          renderMetronomeControls(metroBeatIdx % beats);
+          metroBeatIdx++;
+        };
         tick();
+        const bpm = Number(state.song.base.bpm) || 112;
+        const stepMs = (state.song.base.timeSig === '6/8') ? (30000 / bpm) : (60000 / bpm);
         metroTimer = setInterval(tick, stepMs);
+        document.getElementById('metro-led')?.classList.replace('bg-stone-500', 'bg-emerald-400');
+        const pill = document.getElementById('metro-status-pill');
+        if (pill) pill.textContent = 'Activo';
+        const btn = document.getElementById('btn-metro-panel');
+        if (btn) btn.textContent = '■ Detener';
       });
     }
 
@@ -3887,6 +4031,31 @@
       renderInspirationList();
     }
 
+    function panicStopAllAudio() {
+      stopAllPlayback();
+      if (metroTimer) {
+        clearInterval(metroTimer);
+        metroTimer = null;
+        document.getElementById('metro-led')?.classList.replace('bg-emerald-400', 'bg-stone-500');
+        const pill = document.getElementById('metro-status-pill');
+        if (pill) pill.textContent = 'Detenido';
+        const btn = document.getElementById('btn-metro-panel');
+        if (btn) btn.textContent = '▶ Iniciar';
+        renderMetronomeControls(-1);
+      }
+      if (scalePlayTimer) {
+        clearInterval(scalePlayTimer);
+        scalePlayTimer = null;
+        document.querySelectorAll('.scale-cell-playing').forEach(el => el.classList.remove('scale-cell-playing'));
+        const sBtn = document.getElementById('btn-play-scale');
+        if (sBtn) sBtn.textContent = '▶ Escuchar Escala';
+      }
+      if (audioCtx && audioCtx.state === 'running') {
+        audioCtx.suspend().catch(() => {});
+      }
+      showToast('🔇 Todo el sonido detenido');
+    }
+
     function togglePlayBase() {
       if (playbackMode === 'base') {
         stopAllPlayback();
@@ -4736,17 +4905,23 @@
       if (!toCloud) return;
       showGlobalProgress(40, 'Guardando en Google Drive...');
       try {
-        await fetch(GAS_WEBAPP_URL, {
+        const res = await fetch(GAS_WEBAPP_URL, {
           method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
           body: JSON.stringify({
             action: 'saveProjects',
             projects: state.projects,
             bank: state.bank
           })
         });
-        if (notify) showToast('☁️ Guardado en Google Drive');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const badge = document.getElementById('cloud-status-badge');
+        if (badge) {
+          badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400"></span> Drive Guardado`;
+        }
+        if (notify) showToast(`☁️ Guardado en Google Drive (${state.projects.length} temas)`);
       } catch (e) {
-        if (notify) showToast('⚠️ Guardado localmente (sin conexión a Drive)');
+        if (notify) showToast('⚠️ Guardado localmente (revisa permisos/URL de Google Apps Script)');
       } finally {
         hideGlobalProgress();
       }
@@ -4755,21 +4930,64 @@
     async function syncProjectsFromCloud(notify = false) {
       if (notify) showGlobalProgress(35, 'Sincronizando repertorio...');
       try {
-        const res = await fetch(`${GAS_WEBAPP_URL}?action=getProjects&t=${Date.now()}`);
+        const res = await fetch(`${GAS_WEBAPP_URL}?action=getProjects&t=${Date.now()}`, {
+          method: 'GET',
+          cache: 'no-store'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
-        if (Array.isArray(data.projects)) {
-          if (state.projects.length) createJsonBackupSnapshot('Auto-backup previo a sincronizar Drive', true);
-          state.projects = data.projects;
+        const cloudProjects = Array.isArray(data.projects) ? data.projects : null;
+
+        if (cloudProjects) {
+          if (cloudProjects.length === 0 && state.projects.length > 0) {
+            createJsonBackupSnapshot('Respaldo local (Drive estaba vacío)', true);
+            if (notify) showToast(`⚠️ Drive devolvió 0 temas; se conservan tus ${state.projects.length} temas locales`);
+          } else {
+            if (state.projects.length) {
+              createJsonBackupSnapshot('Auto-backup previo a sincronizar Drive', true);
+            }
+            const byId = new Map();
+            cloudProjects.forEach(p => { if (p && p.id) byId.set(p.id, p); });
+            state.projects.forEach(p => {
+              if (!p || !p.id) return;
+              const existing = byId.get(p.id);
+              if (!existing || (Number(p.updatedAt) || 0) > (Number(existing.updatedAt) || 0)) {
+                byId.set(p.id, p);
+              }
+            });
+            state.projects = [...byId.values()].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+
+            // Si el tema abierto es el borrador inicial vacío o tiene una versión más nueva en Drive, cargarlo
+            const isDefaultPlaceholder = state.song.title === 'Nuevo Himno del Culto' && !(state.song.structure || []).length;
+            const matchingCloud = state.projects.find(p => p.id === state.song.id);
+            if (matchingCloud && (Number(matchingCloud.updatedAt) || 0) > (Number(state.song.updatedAt) || 0)) {
+              state.song = JSON.parse(JSON.stringify(matchingCloud));
+              applySongToUI();
+            } else if (isDefaultPlaceholder && state.projects.length > 0) {
+              state.song = JSON.parse(JSON.stringify(state.projects[0]));
+              applySongToUI();
+            }
+          }
         }
         if (Array.isArray(data.bank) && data.bank.length) {
           state.bank = data.bank;
+        }
+        const badge = document.getElementById('cloud-status-badge');
+        if (badge) {
+          badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400"></span> Drive (${state.projects.length})`;
         }
         saveLocalState();
         renderSongsModalList();
         renderSongsFoldersPage();
         renderBankList();
-        if (notify) showToast(`☁️ Sincronizadas ${state.projects.length} canciones`);
+        if (notify && (!cloudProjects || cloudProjects.length > 0 || state.projects.length === 0)) {
+          showToast(`☁️ Sincronizadas ${state.projects.length} canciones desde Drive`);
+        }
       } catch (e) {
+        const badge = document.getElementById('cloud-status-badge');
+        if (badge) {
+          badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-400"></span> Sin conexión Drive`;
+        }
         if (notify) showToast('⚠️ No se pudo conectar con Google Drive');
       } finally {
         hideGlobalProgress();
