@@ -2609,7 +2609,7 @@
       const baseBeats = timeSig === '3/4' ? 3 : (timeSig === '2/4' ? 2 : (timeSig === '6/8' ? 3 : 4));
       const activeBeats = Math.max(1, Math.round(baseBeats * Math.max(0.25, fraction)));
 
-      if (style === 'waltz' || timeSig === '3/4') {
+      if (style === 'waltz') {
         for (let i = 0; i < activeBeats; i++) {
           const b = beatOffset + i;
           const t = i * beatSec;
@@ -2619,7 +2619,7 @@
         return;
       }
 
-      if (style === 'jig' || timeSig === '6/8') {
+      if (style === 'jig') {
         const eighth = beatSec * 0.5;
         const eighths = Math.max(2, activeBeats * 2);
         const eighthOffset = Math.round(beatOffset * 2);
@@ -2639,16 +2639,18 @@
         const half = beatSec * 0.5;
         const quarter = beatSec * 0.25;
         const isEvenBeat = (b % 2 === 0);
+        const useFifth = (b === 2) || (baseBeats === 3 && b === 2);
+        const isLastBeat = (b === baseBeats - 1);
 
         switch (style) {
           case 'folk':
-            if (isEvenBeat) playBassRoot(parsedChord, t, b === 2, 0.35, bus);
+            if (isEvenBeat) playBassRoot(parsedChord, t, useFifth, 0.35, bus);
             else playChordStrum(frets, t, 'down', beatSec * 0.72, 0.22, false, bus);
             break;
 
           case 'bumditty':
             if (isEvenBeat) {
-              playBassRoot(parsedChord, t, b === 2, 0.34, bus);
+              playBassRoot(parsedChord, t, useFifth, 0.34, bus);
             } else {
               playChordStrum(frets, t, 'down', half * 0.95, 0.24, false, bus);
               const droneMidi = openMidis[0] + (frets[0] || 0);
@@ -2664,7 +2666,7 @@
 
           case 'country':
             if (isEvenBeat) {
-              playBassRoot(parsedChord, t, b === 2, 0.35, bus);
+              playBassRoot(parsedChord, t, useFifth, 0.35, bus);
               playChordStrum(frets, t + half, 'up', half * 0.85, 0.16, true, bus);
             } else {
               playPercussiveMute(t, 0.25, bus);
@@ -2674,7 +2676,7 @@
 
           case 'swing':
             if (isEvenBeat) {
-              playBassRoot(parsedChord, t, b === 2, 0.35, bus);
+              playBassRoot(parsedChord, t, useFifth, 0.35, bus);
             } else {
               playChordStrum(frets, t, 'down', beatSec * 0.62, 0.22, false, bus);
               playChordStrum(frets, t + beatSec * 0.66, 'up', beatSec * 0.32, 0.17, true, bus);
@@ -2683,8 +2685,8 @@
 
           case 'foxtrot':
             if (b === 0) playBassRoot(parsedChord, t, false, 0.36, bus);
-            if (b === 2) playChordStrum(frets, t, 'down', beatSec * 0.88, 0.23, false, bus);
-            if (b === 3) playChordStrum(frets, t, 'up', beatSec * 0.88, 0.19, true, bus);
+            else if (isLastBeat) playChordStrum(frets, t, 'up', beatSec * 0.88, 0.19, true, bus);
+            else playChordStrum(frets, t, 'down', beatSec * 0.88, 0.23, false, bus);
             break;
 
           case 'circus':
@@ -2703,7 +2705,7 @@
 
           case 'ragtime':
             playBassRoot(parsedChord, t, !isEvenBeat, 0.35, bus);
-            if (b === 3) playPercussiveMute(t + half, 0.24, bus);
+            if (isLastBeat) playPercussiveMute(t + half, 0.24, bus);
             else playChordStrum(frets, t + half, 'up', half * 0.65, 0.19, true, bus);
             break;
 
@@ -2732,7 +2734,7 @@
 
           case 'cumbia':
             if (isEvenBeat) {
-              playBassRoot(parsedChord, t, b === 2, 0.36, bus);
+              playBassRoot(parsedChord, t, useFifth, 0.36, bus);
               playChordStrum(frets, t + half, 'up', half * 0.65, 0.19, true, bus);
             } else {
               playChordStrum(frets, t, 'up', half * 0.65, 0.21, true, bus);
@@ -2740,7 +2742,7 @@
             break;
 
           case 'bluegrass':
-            if (isEvenBeat) playBassRoot(parsedChord, t, b === 2, 0.36, bus);
+            if (isEvenBeat) playBassRoot(parsedChord, t, useFifth, 0.36, bus);
             else playPercussiveMute(t, 0.30, bus);
             break;
 
@@ -2750,7 +2752,7 @@
             } else if (b === 1) {
               playChordStrum(frets, t, 'down', half * 0.9, 0.21, false, bus);
               playChordStrum(frets, t + half, 'up', half * 0.9, 0.17, true, bus);
-            } else if (b === 2) {
+            } else if (b === 2 && baseBeats > 3) {
               playChordStrum(frets, t + half, 'up', half * 0.9, 0.18, true, bus);
             } else {
               playChordStrum(frets, t, 'down', half * 0.9, 0.22, false, bus);
@@ -2775,7 +2777,7 @@
             break;
 
           default:
-            if (isEvenBeat) playBassRoot(parsedChord, t, b === 2, 0.35, bus);
+            if (isEvenBeat) playBassRoot(parsedChord, t, useFifth, 0.35, bus);
             else playChordStrum(frets, t, 'down', beatSec * 0.72, 0.22, false, bus);
             break;
         }
