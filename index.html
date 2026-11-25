@@ -358,6 +358,7 @@
             <select id="song-folder-select" onchange="onSongFolderChange()" class="th-input border rounded-xl px-3 py-2 sm:py-2.5 text-xs sm:text-sm font-semibold w-full sm:w-auto max-w-full">
               <option value="Setlist Próximo Bolo">🎤 Setlist Próximo Bolo</option>
               <option value="Repertorio Activo">📂 Repertorio Activo</option>
+              <option value="Versiones">🎸 Versiones</option>
               <option value="Bocetos / Ideas">💡 Bocetos / Ideas</option>
             </select>
           </div>
@@ -2052,6 +2053,36 @@
       return audioCtx;
     }
 
+    async function ensureAudioReady() {
+      const ctx = getAudioCtx();
+      if (!ctx) return null;
+      if (ctx.state === 'suspended') {
+        try {
+          await ctx.resume();
+          await new Promise(r => setTimeout(r, 50));
+        } catch (e) {}
+      }
+      try {
+        const osc = ctx.createOscillator();
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(0.00001, ctx.currentTime);
+        osc.connect(g);
+        g.connect(ctx.destination);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.01);
+        await new Promise(r => setTimeout(r, 20));
+      } catch (e) {}
+      return ctx;
+    }
+
+    ['pointerdown', 'keydown'].forEach(evtName => {
+      window.addEventListener(evtName, () => {
+        if (audioCtx && audioCtx.state === 'suspended') {
+          audioCtx.resume().catch(() => {});
+        }
+      }, { passive: true });
+    });
+
     function getRhythmBus() {
       const ctx = getAudioCtx();
       if (!ctx) return null;
@@ -2145,6 +2176,7 @@
         renderString(0, 1);
       }
     }
+
     function playPercussiveMute(delaySec = 0, gainVal = 0.24, destNode = null) {
       const ctx = getAudioCtx();
       if (!ctx) return;
@@ -2212,10 +2244,9 @@
       osc.connect(gain);
       gain.connect(ctx.destination);
       osc.start(now);
-      osc.stop(now + 0.05);
     }
 
-    function playBarRhythm(parsedChord, voicingIdx, style, timeSig, bpm, fraction = 1) {
+    function playBarRhythm(parsedChord, voicingIdx, style, timeSig, bpm, fraction = 1, beatOffset = 0) {
       if (!parsedChord || parsedChord.isSilence) return;
       const bus = getRhythmBus();
       const voicings = getChordVoicings(parsedChord, 16);
@@ -2226,8 +2257,9 @@
       const activeBeats = Math.max(1, Math.round(baseBeats * Math.max(0.25, fraction)));
 
       if (style === 'waltz' || timeSig === '3/4') {
-        for (let b = 0; b < activeBeats; b++) {
-          const t = b * beatSec;
+        for (let i = 0; i < activeBeats; i++) {
+          const b = beatOffset + i;
+          const t = i * beatSec;
           if (b % 3 === 0) playBassRoot(parsedChord, t, false, 0.36, bus);
           else playChordStrum(frets, t, b % 3 === 1 ? 'down' : 'up', beatSec * 0.72, 0.18, true, bus);
         }
@@ -2237,9 +2269,10 @@
       if (style === 'jig' || timeSig === '6/8') {
         const eighth = beatSec * 0.5;
         const eighths = Math.max(2, activeBeats * 2);
+        const eighthOffset = Math.round(beatOffset * 2);
         for (let i = 0; i < eighths; i++) {
           const t = i * eighth;
-          const pos = i % 3;
+          const pos = (eighthOffset + i) % 3;
           if (pos === 0) playChordStrum(frets, t, 'down', eighth * 1.15, 0.25, false, bus);
           else if (pos === 1) playChordStrum(frets, t, 'up', eighth * 0.85, 0.14, true, bus);
           else playChordStrum(frets, t, 'down', eighth * 0.9, 0.17, true, bus);
@@ -2247,8 +2280,9 @@
         return;
       }
 
-      for (let b = 0; b < activeBeats; b++) {
-        const t = b * beatSec;
+      for (let i = 0; i < activeBeats; i++) {
+        const b = (beatOffset + i) % baseBeats;
+        const t = i * beatSec;
         const half = beatSec * 0.5;
         const quarter = beatSec * 0.25;
         const isEvenBeat = (b % 2 === 0);
@@ -2800,13 +2834,72 @@
       saveLocalState();
     }
 
-    function getHarmonicVariationsForChord(rawToken, parsed) {
+    function appendQuickChordFromSelect(sel) {
+      const val = sel && sel.value;
+      if (!val) return;
+      appendChordTokenWithAutoFraction(val);
+      sel.value = '';
+    }
+
+    function insertSilenceToBase() {
+      appendChordTokenWithAutoFraction('NC');
+    }
+
+    function setBaseChordDuration(idx, val) {
+      const num = parseFloat(val);
+      if (!state.song.base.durations) state.song.base.durations = {};
+      state.song.base.durations[idx] = (!isNaN(num) && num > 0 && num <= 1) ? num : 1;
+      renderBaseChords();
+      recordSongHistory();
+      saveLocalState();
+    }
+
+    function cycleBaseChordVoicing(idx) {
+      const chords = splitChordsText(state.song.base.chordsText);
+      const parsed = parseChordSymbol(chords[idx]);
+      if (!parsed || parsed.isSilence) return;
+      const voicings = getChordVoicings(parsed, 16);
+      if (!state.song.base.voicings) state.song.base.voicings = {};
+      const nextIdx = ((state.song.base.voicings[idx] || 0) + 1) % voicings.length;
+      state.song.base.voicings[idx] = nextIdx;
+      const frets = voicings[nextIdx] || [];
+      if (frets.length) playChordStrum(frets, 0, 'down', 0.9, 0.22);
+      renderBaseChords();
+      recordSongHistory();
+      saveLocalState();
+    }
+
+    function removeBaseChordAt(idx) {
+      const chords = splitChordsText(state.song.base.chordsText);
+      if (idx < 0 || idx >= chords.length) return;
+      const oldVoicings = state.song.base.voicings || {};
+      const oldDurations = state.song.base.durations || {};
+      const newVoicings = {};
+      const newDurations = {};
+      let ni = 0;
+      for (let i = 0; i < chords.length; i++) {
+        if (i === idx) continue;
+        if (oldVoicings[i] !== undefined) newVoicings[ni] = oldVoicings[i];
+        if (oldDurations[i] !== undefined) newDurations[ni] = oldDurations[i];
+        ni++;
+      }
+      chords.splice(idx, 1);
+      state.song.base.voicings = newVoicings;
+      state.song.base.durations = newDurations;
+      state.song.base.chordsText = chords.join(' - ');
+      document.getElementById('base-chords-input').value = state.song.base.chordsText;
+      renderBaseChords();
+      recordSongHistory();
+      saveLocalState();
+    }
+
+    function getHarmonicVariationsForChord(rawToken, parsed, contextChords = null) {
       const m = String(rawToken || '').trim().match(/^([A-Ga-g][#b]?)(.*)$/);
       if (!m || !parsed || parsed.isSilence) return [];
       let rawRoot = m[1][0].toUpperCase() + (m[1].slice(1) || '');
       if (FLAT_TO_SHARP[rawRoot]) rawRoot = FLAT_TO_SHARP[rawRoot];
 
-      const chords = splitChordsText(state.song.base.chordsText);
+      const chords = Array.isArray(contextChords) ? contextChords : splitChordsText(state.song.base.chordsText);
       const firstValid = chords.map(c => parseChordSymbol(c)).find(p => p && !p.isSilence);
       const keyRootPc = firstValid ? firstValid.rootPc : parsed.rootPc;
       const deg = (parsed.rootPc - keyRootPc + 12) % 12;
@@ -2879,13 +2972,14 @@
       return items;
     }
 
-    function openChordVariationsModal(idx) {
-      const chords = splitChordsText(state.song.base.chordsText);
+    function openChordVariationsModal(idx, secId = null) {
+      const sec = secId ? state.song.structure.find(s => s.id === secId) : null;
+      const chords = sec ? splitChordsText(sec.chordsText) : splitChordsText(state.song.base.chordsText);
       const rawToken = chords[idx];
       const parsed = parseChordSymbol(rawToken);
       if (!parsed || parsed.isSilence) return;
 
-      const variations = getHarmonicVariationsForChord(rawToken, parsed);
+      const variations = getHarmonicVariationsForChord(rawToken, parsed, chords);
       const titleEl = document.getElementById('cv-modal-title');
       const subEl = document.getElementById('cv-modal-subtitle');
       const listEl = document.getElementById('cv-modal-list');
@@ -2895,8 +2989,12 @@
         titleEl.innerHTML = `Variaciones de <span class="th-accent">${parsed.display}</span> <em class="text-sm font-normal th-muted">(${chordToLatin(parsed)})</em>`;
       }
       if (subEl) {
-        subEl.textContent = `Acorde #${idx + 1} • Pulsa 🔊 para preescuchar o Usar para sustituirlo`;
+        subEl.textContent = sec
+          ? `${sec.name} • Acorde #${idx + 1} • Pulsa 🔊 para preescuchar o Usar para sustituirlo`
+          : `Acorde #${idx + 1} • Pulsa 🔊 para preescuchar o Usar para sustituirlo`;
       }
+
+      const secArg = sec ? `'${sec.id}'` : 'null';
 
       listEl.innerHTML = variations.map(v => {
         const vp = parseChordSymbol(v.token);
@@ -2914,7 +3012,7 @@
             </div>
             <div class="flex items-center gap-1.5 shrink-0">
               <button type="button" onclick="previewChordVariation('${v.token}')" class="th-input border hover:border-amber-500 px-2.5 py-1.5 rounded-lg font-bold">🔊</button>
-              <button type="button" onclick="applyChordVariation(${idx}, '${v.token}')" class="bg-amber-500 hover:bg-amber-400 text-stone-950 px-3 py-1.5 rounded-lg font-extrabold">Usar</button>
+              <button type="button" onclick="applyChordVariation(${idx}, '${v.token}', ${secArg})" class="bg-amber-500 hover:bg-amber-400 text-stone-950 px-3 py-1.5 rounded-lg font-extrabold">Usar</button>
             </div>
           </div>
         `;
@@ -2934,7 +3032,27 @@
       if (voicings.length) playChordStrum(voicings[0], 0, 'down', 1.0, 0.23);
     }
 
-    function applyChordVariation(idx, rawToken) {
+    function applyChordVariation(idx, rawToken, secId = null) {
+      if (secId) {
+        const sec = state.song.structure.find(s => s.id === secId);
+        if (!sec) return;
+        const chords = splitChordsText(sec.chordsText);
+        if (idx < 0 || idx >= chords.length) return;
+        chords[idx] = rawToken;
+        sec.chordsText = chords.join(' - ');
+        if (!sec.voicings) sec.voicings = {};
+        sec.voicings[idx] = 0;
+        closeChordVariationsModal();
+        previewChordVariation(rawToken);
+        renderStructureList();
+        renderRecStructureGuide();
+        recordSongHistory();
+        saveLocalState();
+        const vp = parseChordSymbol(rawToken);
+        showToast(`✨ ${sec.name} (#${idx + 1}) cambiado a ${vp ? vp.display : rawToken}`);
+        return;
+      }
+
       const chords = splitChordsText(state.song.base.chordsText);
       if (idx < 0 || idx >= chords.length) return;
       chords[idx] = rawToken;
@@ -3221,10 +3339,13 @@
           const vIdx = (sec.voicings?.[cIdx] || 0) % voicings.length;
           const frets = voicings[vIdx] || [];
           return `
-            <div id="struct-chord-${sIdx}-${cIdx}" class="struct-chord-card th-card border rounded-xl p-2 text-center min-w-[82px]">
-              <div class="font-serif-title text-sm font-extrabold th-accent leading-tight">${parsed.display} ${dur < 1 ? `<span class="text-[10px]">(${dur})</span>` : ''}</div>
-              <div class="text-[10px] italic th-muted leading-tight mb-0.5">${chordToLatin(parsed)}</div>
+            <div id="struct-chord-${sIdx}-${cIdx}" class="struct-chord-card th-card border rounded-xl p-2 text-center min-w-[88px] flex flex-col justify-between gap-1">
+              <div>
+                <div class="font-serif-title text-sm font-extrabold th-accent leading-tight">${parsed.display} ${dur < 1 ? `<span class="text-[10px]">(${dur})</span>` : ''}</div>
+                <div class="text-[10px] italic th-muted leading-tight mb-0.5">${chordToLatin(parsed)}</div>
+              </div>
               ${renderChordSvg(frets, false)}
+              <button type="button" onclick="openChordVariationsModal(${cIdx}, '${sec.id}')" title="Variaciones armónicas de ${parsed.display}" class="w-full th-input border hover:border-amber-500 rounded-lg py-0.5 px-1 text-[10px] font-bold th-accent truncate">✨ Variac.</button>
             </div>
           `;
         }).join('');
@@ -3255,7 +3376,7 @@
               </div>
             </div>
             <div class="flex flex-wrap gap-2">${cards}</div>
-            ${sec.lyrics ? `<p class="text-xs italic th-muted border-t pt-1.5 break-words" style="border-color: var(--border-main);">${sec.lyrics}</p>` : ''}
+            ${sec.lyrics ? `<div class="text-xs italic th-muted border-t pt-2 whitespace-pre-line leading-relaxed break-words" style="border-color: var(--border-main);">${String(sec.lyrics).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>` : ''}
           </div>
         `;
       }).join('');
@@ -3351,6 +3472,7 @@
       document.getElementById('btn-play-base').textContent = '■ Detener Rueda';
 
       let idx = 0;
+      let barProgress = 0;
       let expectedTime = performance.now();
 
       const step = () => {
@@ -3360,7 +3482,10 @@
           stopAllPlayback();
           return;
         }
-        if (idx >= chords.length) idx = 0;
+        if (idx >= chords.length) {
+          idx = 0;
+          barProgress = 0;
+        }
 
         document.querySelectorAll('.active-play').forEach(el => el.classList.remove('active-play'));
         document.getElementById(`base-card-${idx}`)?.classList.add('active-play');
@@ -3372,15 +3497,25 @@
         const bpm = Number(state.song.base.bpm) || 112;
         const ts = state.song.base.timeSig || '4/4';
         const beats = ts === '3/4' ? 3 : (ts === '2/4' ? 2 : (ts === '6/8' ? 3 : 4));
+        const beatOffset = Math.round(barProgress * beats) % beats;
         const stepMs = beats * (60000 / bpm) * frac;
 
-        playBarRhythm(parsed, vIdx, state.song.base.style, ts, bpm, frac);
+        playBarRhythm(parsed, vIdx, state.song.base.style, ts, bpm, frac, beatOffset);
+
+        barProgress = Math.round((barProgress + frac) * 100) / 100;
+        if (barProgress >= 0.99) barProgress = 0;
 
         idx = (idx + 1) % chords.length;
+        if (idx === 0) barProgress = 0;
         expectedTime += stepMs;
         playbackHandle = setTimeout(step, Math.max(20, expectedTime - performance.now()));
       };
-      step();
+
+      ensureAudioReady().then(() => {
+        if (playbackMode !== 'base') return;
+        expectedTime = performance.now();
+        step();
+      });
     }
 
     function togglePlayAllStructure(startSecIdx = -1) {
@@ -3410,6 +3545,8 @@
       playbackMode = 'all';
       document.getElementById('btn-play-all').textContent = '■ Parar Karaoke';
       let cursor = 0;
+      let barProgress = 0;
+      let prevSecKey = '';
       let expectedTime = performance.now();
 
       const step = () => {
@@ -3421,32 +3558,46 @@
         }
         const item = timeline[cursor];
         const nextItem = timeline[cursor + 1];
+        const liveSec = state.song.structure[item.sIdx] || item.sec;
+        const liveChords = liveSec.isBreak ? ['NC'] : splitChordsText(liveSec.chordsText);
+        const liveTok = liveChords[item.cIdx] || item.tok;
+        const nextLiveSec = nextItem ? (state.song.structure[nextItem.sIdx] || nextItem.sec) : null;
+        const nextLiveTok = nextItem
+          ? ((nextLiveSec && !nextLiveSec.isBreak ? splitChordsText(nextLiveSec.chordsText)[nextItem.cIdx] : null) || nextItem.tok)
+          : null;
+
+        const secKey = `${item.sIdx}-${item.rep}`;
+        if (secKey !== prevSecKey) {
+          barProgress = 0;
+          prevSecKey = secKey;
+        }
 
         document.querySelectorAll('.active-play').forEach(el => el.classList.remove('active-play'));
         document.querySelectorAll('.active-sec').forEach(el => el.classList.remove('active-sec'));
         document.getElementById(`struct-sec-${item.sIdx}`)?.classList.add('active-sec');
         document.getElementById(`struct-chord-${item.sIdx}-${item.cIdx}`)?.classList.add('active-play');
 
-        const parsed = parseChordSymbol(item.tok);
-        const nextParsed = nextItem ? parseChordSymbol(nextItem.tok) : null;
-        const vIdx = item.sec.voicings?.[item.cIdx] || 0;
-        const frac = Number(item.sec.durations?.[item.cIdx]) || 1;
-        const bpm = Number(item.sec.bpm) || 112;
-        const ts = item.sec.timeSig || '4/4';
+        const parsed = parseChordSymbol(liveTok);
+        const nextParsed = nextLiveTok ? parseChordSymbol(nextLiveTok) : null;
+        const vIdx = liveSec.voicings?.[item.cIdx] || 0;
+        const frac = Number(liveSec.durations?.[item.cIdx]) || 1;
+        const bpm = Number(liveSec.bpm) || 112;
+        const ts = liveSec.timeSig || '4/4';
         const beats = ts === '3/4' ? 3 : (ts === '2/4' ? 2 : (ts === '6/8' ? 3 : 4));
+        const beatOffset = Math.round(barProgress * beats) % beats;
         const beatSec = 60 / bpm;
         const stepMs = beats * (60000 / bpm) * frac;
 
         if (state.structMetronomeClick) {
           const activeBeats = Math.max(1, Math.round(beats * frac));
           for (let b = 0; b < activeBeats; b++) {
-            playClickSound(b === 0, b * beatSec);
+            playClickSound(((beatOffset + b) % beats) === 0, b * beatSec);
           }
         }
 
-        document.getElementById('atril-sec-lbl').textContent = `${item.sec.role.toUpperCase()} • ${item.sec.name} (Vuelta ${item.rep}/${item.reps})`;
-        document.getElementById('atril-meta-lbl').textContent = item.sec.lyrics || `${ts} • ${bpm} BPM`;
-        document.getElementById('atril-chord-big').textContent = parsed ? parsed.display : item.tok;
+        document.getElementById('atril-sec-lbl').textContent = `${liveSec.role.toUpperCase()} • ${liveSec.name} (Vuelta ${item.rep}/${item.reps})`;
+        document.getElementById('atril-meta-lbl').textContent = liveSec.lyrics || `${ts} • ${bpm} BPM`;
+        document.getElementById('atril-chord-big').textContent = parsed ? parsed.display : liveTok;
         const latinBig = document.getElementById('atril-chord-latin');
         if (latinBig) latinBig.textContent = parsed ? chordToLatin(parsed) : '';
         document.getElementById('atril-next-lbl').innerHTML = nextParsed
@@ -3461,50 +3612,28 @@
             diagBox.innerHTML = '';
           }
         }
-
-        playBarRhythm(parsed, vIdx, item.sec.style, ts, bpm, frac);
+        playBarRhythm(parsed, vIdx, liveSec.style, ts, bpm, frac, beatOffset);
+        barProgress = Math.round((barProgress + frac) * 100) / 100;
+        if (barProgress >= 0.99) barProgress = 0;
         cursor++;
         expectedTime += stepMs;
         playbackHandle = setTimeout(step, Math.max(20, expectedTime - performance.now()));
       };
-      step();
-    }
 
-    function togglePlayInspiration(idx, chordsStr) {
-      if (playbackMode === 'insp' && state.playingInspIdx === idx) {
-        stopAllPlayback();
-        return;
-      }
-      stopAllPlayback();
-      const chords = splitChordsText(chordsStr);
-      if (!chords.length) return;
-      playbackMode = 'insp';
-      state.playingInspIdx = idx;
-      renderInspirationList();
-
-      let cur = 0;
-      let expectedTime = performance.now();
-      const step = () => {
-        if (playbackMode !== 'insp' || state.playingInspIdx !== idx) return;
-        const parsed = parseChordSymbol(chords[cur]);
-        const bpm = Number(state.song.base.bpm) || 112;
-        const ts = state.song.base.timeSig || '4/4';
-        const beats = ts === '3/4' ? 3 : (ts === '2/4' ? 2 : (ts === '6/8' ? 3 : 4));
-        const stepMs = beats * (60000 / bpm);
-        playBarRhythm(parsed, 0, state.song.base.style, ts, bpm, 1);
-        cur = (cur + 1) % chords.length;
-        expectedTime += stepMs;
-        playbackHandle = setTimeout(step, Math.max(20, expectedTime - performance.now()));
-      };
-      step();
+      ensureAudioReady().then(() => {
+        if (playbackMode !== 'all') return;
+        expectedTime = performance.now();
+        step();
+      });
     }
 
     // =========================================================================
-    // 8. GRABADORA CON OSCILÓMETRO, DRIVE, BORRADO Y PERSISTENCIA
+    // 8. GRABADORA DE TOMAS CON OSCILÓMETRO, INDEXEDDB Y SUBIDA/BORRADO EN DRIVE
     // =========================================================================
-    let mediaRecorder = null;
-    let recChunks = [];
-    let recTimerInt = null;
+    let micMediaRecorder = null;
+    let micChunks = [];
+    let micStream = null;
+    let recTimerInterval = null;
     let recStartTime = 0;
     let recOscRaf = null;
     let recAnalyser = null;
@@ -3513,77 +3642,47 @@
       const box = document.getElementById('rec-structure-guide');
       if (!box) return;
       if (!state.song.structure.length) {
-        box.innerHTML = `<div class="text-xs th-muted">Sin secciones todavía.</div>`;
+        box.innerHTML = `<div class="text-xs th-muted">Añade secciones en el Paso 2 para ver la guía mientras grabas.</div>`;
         return;
       }
-      box.innerHTML = state.song.structure.map(sec => `
-        <div class="th-card border rounded-xl p-2.5 text-xs">
-          <div class="font-bold th-accent">[${sec.role}] ${sec.name} (x${sec.repeats || 1})</div>
-          <div class="font-mono-code font-bold mt-0.5 break-words">${sec.chordsText}</div>
-          ${sec.lyrics ? `<div class="italic th-muted mt-0.5 break-words">${sec.lyrics}</div>` : ''}
+      box.innerHTML = state.song.structure.map((s, idx) => `
+        <div class="th-card border rounded-xl p-2 text-xs space-y-0.5">
+          <div class="flex items-center justify-between gap-2">
+            <strong class="th-accent">#${idx + 1} ${s.name} (x${s.repeats || 1})</strong>
+            <span class="font-mono-code text-[11px] th-muted">${s.timeSig} • ${s.bpm} BPM</span>
+          </div>
+          <div class="font-mono-code font-bold">${s.chordsText}</div>
+          ${s.lyrics ? `<div class="italic th-muted whitespace-pre-line">${s.lyrics}</div>` : ''}
         </div>
       `).join('');
     }
 
-    function renderSongTakesList() {
-      const list = document.getElementById('song-takes-list');
-      if (!list) return;
-      const takes = state.song.takes || [];
-      const tc = document.getElementById('takes-count-lbl');
-      if (tc) tc.textContent = String(takes.length);
-      if (!takes.length) {
-        list.innerHTML = `<div class="text-xs th-muted">No hay tomas grabadas o subidas todavía.</div>`;
-        return;
-      }
-      list.innerHTML = takes.map(t => `
-        <div class="th-card border rounded-xl p-2.5 space-y-2 text-xs">
-          <div class="flex flex-wrap items-center justify-between gap-1.5 min-w-0">
-            <strong class="truncate max-w-full flex-1 min-w-0">${t.name}</strong>
-            <span class="font-mono-code th-muted shrink-0 text-[11px]">${t.duration || ''} • ${t.author || ''}</span>
-          </div>
-          ${t.url ? `<audio controls src="${t.url}" class="w-full h-8"></audio>` : `<div class="text-[11px] th-muted">Audio guardado en Drive o sin archivo local</div>`}
-          <div class="flex flex-wrap items-center justify-end gap-1.5">
-            ${t.driveUrl
-              ? `<a href="${t.driveUrl}" target="_blank" rel="noopener" class="px-2.5 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/35 text-emerald-400 font-bold">↗ Drive</a>`
-              : `<button type="button" onclick="uploadTakeToDrive('${t.id}')" class="th-input border hover:border-amber-500 px-2.5 py-1 rounded-lg font-bold th-accent">☁️ Subir a Drive</button>`
-            }
-            <button type="button" onclick="deleteSongTake('${t.id}')" class="th-input border hover:border-rose-500 text-rose-400 px-2.5 py-1 rounded-lg font-bold">🗑 Borrar</button>
-          </div>
-        </div>
-      `).join('');
-    }
-
-    function startRecOscilloscope(stream) {
+    function runRecOscilloscope() {
+      if (!recAnalyser) return;
+      const buf = new Float32Array(recAnalyser.fftSize);
       const canvas = document.getElementById('rec-oscilloscope');
       const c2d = canvas ? canvas.getContext('2d') : null;
-      const ctx = getAudioCtx();
-      if (!ctx || !stream) return;
-      const src = ctx.createMediaStreamSource(stream);
-      recAnalyser = ctx.createAnalyser();
-      recAnalyser.fftSize = 1024;
-      src.connect(recAnalyser);
-      const buf = new Float32Array(recAnalyser.fftSize);
 
-      const draw = () => {
-        if (!recAnalyser) return;
+      const tick = () => {
+        if (!micStream) return;
         recAnalyser.getFloatTimeDomainData(buf);
         let rms = 0;
         for (let i = 0; i < buf.length; i++) rms += buf[i] * buf[i];
         rms = Math.sqrt(rms / buf.length);
         const pct = Math.min(100, Math.round(rms * 380));
-        const fill = document.getElementById('rec-meter-fill');
+        const meter = document.getElementById('rec-meter-fill');
         const lbl = document.getElementById('rec-level-lbl');
-        if (fill) fill.style.width = `${pct}%`;
+        if (meter) meter.style.width = `${pct}%`;
         if (lbl) lbl.textContent = `${pct}%`;
 
         if (c2d && canvas) {
-          const w = canvas.width = canvas.clientWidth || 300;
+          const w = canvas.width = canvas.clientWidth || 320;
           const h = canvas.height = canvas.clientHeight || 80;
           c2d.clearRect(0, 0, w, h);
-          c2d.strokeStyle = '#f43f5e';
+          c2d.strokeStyle = '#fb7185';
           c2d.lineWidth = 2;
           c2d.beginPath();
-          for (let i = 0; i < buf.length; i += 2) {
+          for (let i = 0; i < buf.length; i += 4) {
             const x = (i / buf.length) * w;
             const y = (0.5 + buf[i] * 0.45) * h;
             if (i === 0) c2d.moveTo(x, y);
@@ -3591,279 +3690,284 @@
           }
           c2d.stroke();
         }
-        recOscRaf = requestAnimationFrame(draw);
+        recOscRaf = requestAnimationFrame(tick);
       };
-      draw();
-    }
-
-    function stopRecOscilloscope() {
-      if (recOscRaf) cancelAnimationFrame(recOscRaf);
-      recOscRaf = null;
-      recAnalyser = null;
-      const fill = document.getElementById('rec-meter-fill');
-      const lbl = document.getElementById('rec-level-lbl');
-      if (fill) fill.style.width = '0%';
-      if (lbl) lbl.textContent = '0%';
+      tick();
     }
 
     async function startMicRecording(withKaraoke = false) {
       markCultUnlocked();
       saveLocalState();
+      if (micMediaRecorder && micMediaRecorder.state === 'recording') return;
       try {
         const constraints = state.selectedAudioDeviceId
           ? { audio: { deviceId: { exact: state.selectedAudioDeviceId } } }
           : { audio: true };
-        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        micStream = await navigator.mediaDevices.getUserMedia(constraints);
         state.micGranted = true;
         markCultUnlocked();
         updateMicPermissionUI();
-        recChunks = [];
-        mediaRecorder = new MediaRecorder(stream);
-        mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recChunks.push(e.data); };
-        mediaRecorder.onstop = async () => {
-          stopRecOscilloscope();
-          stream.getTracks().forEach(t => t.stop());
-          const blob = new Blob(recChunks, { type: 'audio/webm' });
+
+        const ctx = getAudioCtx();
+        const src = ctx.createMediaStreamSource(micStream);
+        recAnalyser = ctx.createAnalyser();
+        recAnalyser.fftSize = 1024;
+        src.connect(recAnalyser);
+        runRecOscilloscope();
+
+        micChunks = [];
+        micMediaRecorder = new MediaRecorder(micStream);
+        micMediaRecorder.ondataavailable = (e) => {
+          if (e.data && e.data.size > 0) micChunks.push(e.data);
+        };
+        micMediaRecorder.onstop = async () => {
+          const blob = new Blob(micChunks, { type: micMediaRecorder.mimeType || 'audio/webm' });
           const url = URL.createObjectURL(blob);
-          const secs = Math.max(1, Math.round((Date.now() - recStartTime) / 1000));
-          const durStr = `${String(Math.floor(secs / 60)).padStart(2, '0')}:${String(secs % 60).padStart(2, '0')}`;
-          const dateStr = new Date().toISOString().slice(0, 10);
-          const safeSong = (state.song.title || 'Cancion').trim().replace(/\s+/g, '_');
-          const safeUser = (state.currentUser?.name || 'Culto').trim().replace(/\s+/g, '_');
+          const sec = Math.max(1, Math.round((performance.now() - recStartTime) / 1000));
+          const mins = String(Math.floor(sec / 60)).padStart(2, '0');
+          const secs = String(sec % 60).padStart(2, '0');
           const id = 'take_' + Date.now();
           await saveTakeBlobIdb(id, blob);
           state.song.takes.unshift({
             id,
-            name: `${dateStr}_${safeSong}_${safeUser}`,
+            name: `Toma ${state.song.takes.length + 1} (${state.currentUser?.name || 'Culto'})`,
             author: state.currentUser?.name || 'Culto',
-            duration: durStr,
+            duration: `${mins}:${secs}`,
             url,
-            driveUrl: '',
-            createdAt: Date.now()
+            createdAt: Date.now(),
+            driveUrl: ''
           });
           renderSongTakesList();
           saveLocalState();
-          showToast('🎙️ Toma guardada localmente');
+          showToast('🎙️ Toma guardada en el navegador');
         };
-        mediaRecorder.start();
-        startRecOscilloscope(stream);
-        recStartTime = Date.now();
+
+        micMediaRecorder.start();
+        recStartTime = performance.now();
         document.getElementById('btn-rec-start').disabled = true;
         document.getElementById('btn-rec-karaoke').disabled = true;
         document.getElementById('btn-rec-stop').disabled = false;
         document.getElementById('rec-status-msg').textContent = '● Grabando audio...';
-        recTimerInt = setInterval(() => {
-          const s = Math.floor((Date.now() - recStartTime) / 1000);
-          document.getElementById('rec-timer').textContent = `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
-        }, 500);
+
+        recTimerInterval = setInterval(() => {
+          const sec = Math.floor((performance.now() - recStartTime) / 1000);
+          const mins = String(Math.floor(sec / 60)).padStart(2, '0');
+          const secs = String(sec % 60).padStart(2, '0');
+          document.getElementById('rec-timer').textContent = `${mins}:${secs}`;
+        }, 250);
+
         if (withKaraoke) togglePlayAllStructure(0);
       } catch (e) {
-        showToast('⚠️ No se pudo iniciar la grabación');
+        showToast('⚠️ No se pudo iniciar la grabación de micrófono');
       }
     }
 
     function stopMicRecording() {
-      if (recTimerInt) clearInterval(recTimerInt);
-      recTimerInt = null;
-      stopRecOscilloscope();
-      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-        mediaRecorder.stop();
+      if (recTimerInterval) {
+        clearInterval(recTimerInterval);
+        recTimerInterval = null;
       }
-      stopAllPlayback();
+      if (recOscRaf) {
+        cancelAnimationFrame(recOscRaf);
+        recOscRaf = null;
+      }
+      if (micMediaRecorder && micMediaRecorder.state !== 'inactive') {
+        micMediaRecorder.stop();
+      }
+      if (micStream) {
+        micStream.getTracks().forEach(t => t.stop());
+        micStream = null;
+      }
+      if (playbackMode === 'all') stopAllPlayback();
       document.getElementById('btn-rec-start').disabled = false;
       document.getElementById('btn-rec-karaoke').disabled = false;
       document.getElementById('btn-rec-stop').disabled = true;
       document.getElementById('rec-status-msg').textContent = 'Listo para grabar micrófono';
+      document.getElementById('rec-meter-fill').style.width = '0%';
+      document.getElementById('rec-level-lbl').textContent = '0%';
     }
 
-    function handleUploadTakes(ev) {
+    async function handleUploadTakes(ev) {
       const files = Array.from(ev.target.files || []);
-      if (!files.length) return;
-      files.forEach(async file => {
-        const id = 'up_' + Date.now() + '_' + Math.random().toString(36).slice(2, 5);
-        await saveTakeBlobIdb(id, file);
-        const url = URL.createObjectURL(file);
-        const audio = new Audio(url);
-        audio.onloadedmetadata = () => {
-          const secs = Math.round(audio.duration || 0);
-          const durStr = secs ? `${String(Math.floor(secs / 60)).padStart(2, '0')}:${String(secs % 60).padStart(2, '0')}` : 'Audio';
-          state.song.takes.unshift({
-            id,
-            name: file.name,
-            author: state.currentUser?.name || 'Subido',
-            duration: durStr,
-            url,
-            driveUrl: '',
-            createdAt: Date.now()
-          });
-          renderSongTakesList();
-          saveLocalState();
-        };
-      });
+      for (const f of files) {
+        const id = 'take_' + Date.now() + '_' + Math.random().toString(36).slice(2, 5);
+        await saveTakeBlobIdb(id, f);
+        state.song.takes.unshift({
+          id,
+          name: f.name,
+          author: state.currentUser?.name || 'Culto',
+          duration: '--:--',
+          url: URL.createObjectURL(f),
+          createdAt: Date.now(),
+          driveUrl: ''
+        });
+      }
+      renderSongTakesList();
+      saveLocalState();
       ev.target.value = '';
-      showToast(`📁 ${files.length} grabación(es) añadida(s)`);
     }
 
-    async function uploadTakeToDrive(takeId) {
-      const take = (state.song.takes || []).find(t => t.id === takeId);
+    async function uploadTakeToDrive(id) {
+      const take = (state.song.takes || []).find(t => t.id === id);
       if (!take) return;
-      const blob = await getTakeBlobIdb(takeId);
+      const blob = await getTakeBlobIdb(id);
       if (!blob) {
-        showToast('⚠️ No se encontró el archivo de audio local');
+        showToast('⚠️ Audio local no disponible para subir');
         return;
       }
-      showToast('☁️ Subiendo audio a Google Drive...');
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        try {
-          const base64 = String(reader.result || '').split(',')[1] || '';
-          const res = await fetch(GAS_WEBAPP_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-            body: JSON.stringify({
-              action: 'uploadAudioTake',
-              fileName: `${take.name}.webm`,
-              mimeType: blob.type || 'audio/webm',
-              songTitle: state.song.title || 'Cancion',
-              author: take.author || 'Culto',
-              base64Data: base64
-            })
-          });
-          let driveUrl = '';
-          try {
-            const json = await res.json();
-            driveUrl = json.url || json.fileUrl || '';
-          } catch (e) {}
-          take.driveUrl = driveUrl || GAS_WEBAPP_URL;
-          renderSongTakesList();
-          saveLocalState();
-          showToast('☁️ Toma enviada a Google Drive');
-        } catch (e) {
-          showToast('⚠️ Error al subir a Drive');
-        }
-      };
-      reader.readAsDataURL(blob);
+      showGlobalProgress(35, 'Subiendo toma a Drive...');
+      try {
+        const base64 = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result || '').split(',')[1] || '');
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+        const res = await fetch(GAS_WEBAPP_URL, {
+          method: 'POST',
+          body: JSON.stringify({
+            action: 'uploadAudioTake',
+            songTitle: state.song.title,
+            fileName: `${state.song.title}_${take.name}.webm`,
+            mimeType: blob.type || 'audio/webm',
+            base64Data: base64
+          })
+        });
+        const data = await res.json().catch(() => ({}));
+        take.driveUrl = data.url || data.fileUrl || 'https://drive.google.com';
+        renderSongTakesList();
+        saveLocalState();
+        showToast('☁️ Toma subida a Google Drive');
+      } catch (e) {
+        showToast('⚠️ Error al subir la toma a Drive');
+      } finally {
+        hideGlobalProgress();
+      }
     }
 
-    async function deleteSongTake(takeId) {
-      await deleteTakeBlobIdb(takeId);
-      state.song.takes = (state.song.takes || []).filter(t => t.id !== takeId);
+    async function deleteTake(id) {
+      await deleteTakeBlobIdb(id);
+      state.song.takes = (state.song.takes || []).filter(t => t.id !== id);
       renderSongTakesList();
       saveLocalState();
       showToast('🗑 Toma eliminada');
     }
 
+    function renderSongTakesList() {
+      const list = document.getElementById('song-takes-list');
+      const countLbl = document.getElementById('takes-count-lbl');
+      const takes = state.song.takes || [];
+      if (countLbl) countLbl.textContent = String(takes.length);
+      if (!list) return;
+      if (!takes.length) {
+        list.innerHTML = `<div class="text-xs th-muted text-center py-4">Aún no hay tomas grabadas para esta canción.</div>`;
+        return;
+      }
+      list.innerHTML = takes.map(t => `
+        <div class="th-card border rounded-xl p-2.5 space-y-1.5 text-xs">
+          <div class="flex items-center justify-between gap-2">
+            <strong class="truncate">${t.name}</strong>
+            <span class="font-mono-code text-[11px] th-muted shrink-0">${t.duration || ''}</span>
+          </div>
+          ${t.url ? `<audio controls src="${t.url}" class="w-full h-8"></audio>` : `<div class="text-[11px] th-muted">Audio guardado en Drive</div>`}
+          <div class="flex flex-wrap items-center justify-end gap-1.5">
+            ${t.driveUrl
+              ? `<a href="${t.driveUrl}" target="_blank" rel="noopener" class="px-2.5 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/35 text-emerald-400 font-bold">↗ Drive</a>`
+              : `<button type="button" onclick="uploadTakeToDrive('${t.id}')" class="th-input border hover:border-amber-500 px-2.5 py-1 rounded-lg font-bold">☁️ Subir a Drive</button>`
+            }
+            <button type="button" onclick="deleteTake('${t.id}')" class="th-input border hover:border-rose-500 text-rose-400 px-2.5 py-1 rounded-lg font-bold">🗑 Borrar</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
     // =========================================================================
-    // 9. INSPIRACIÓN, BANCO Y PROYECTOS EN DRIVE
+    // 9. INSPIRACIÓN NUMERADA POR ESTILOS + BANCO DE BLOQUES
     // =========================================================================
-    const INSP_STYLES_META = {
-      'Folk / Old-Time': { icon: '🪕', label: 'Folk / Old-Time' },
-      'Celta / Modal': { icon: '🍀', label: 'Celta / Modal' },
-      'Country / Bluegrass': { icon: '🤠', label: 'Country / Bluegrass' },
-      'Gypsy / Taberna': { icon: '🎻', label: 'Gypsy / Taberna' },
-      'Balada Oscura / Folk-Punk': { icon: '🔥', label: 'Balada Oscura / Folk-Punk' },
-      'Ragtime / Swing': { icon: '🎹', label: 'Ragtime / Swing' }
-    };
+    const INSPIRATION_TEMPLATES = [
+      { role: 'Estribillo', style: 'Folk / Old-Time', name: 'Himno Taberna Abierto', intervals: [0, 5, 7, 0], qualities: ['maj', 'maj', 'maj', 'maj'] },
+      { role: 'Estribillo', style: 'Folk / Old-Time', name: 'Subida Clásica I - VI - IV - V', intervals: [0, 9, 5, 7], qualities: ['maj', 'm', 'maj', '7'] },
+      { role: 'Estribillo', style: 'Celta / Modal', name: 'Galope Celta bVII', intervals: [0, 10, 5, 0], qualities: ['5', 'maj', 'maj', '5'] },
+      { role: 'Estribillo', style: 'Celta / Modal', name: 'Danza Mixolidia', intervals: [0, 10, 7, 10], qualities: ['maj', 'maj', 'm', 'maj'] },
+      { role: 'Estribillo', style: 'Country / Bluegrass', name: 'Bluegrass High Lonesome', intervals: [0, 0, 5, 7], qualities: ['maj', '7', 'maj', '7'] },
+      { role: 'Estribillo', style: 'Country / Bluegrass', name: 'Vuelta Country Campfire', intervals: [0, 5, 0, 7], qualities: ['maj', 'maj', 'maj', 'maj'] },
+      { role: 'Estribillo', style: 'Gypsy / Taberna', name: 'Brindis Manouche', intervals: [0, 4, 9, 7], qualities: ['maj', '7', 'm', '7'] },
+      { role: 'Estribillo', style: 'Balada Oscura / Folk-Punk', name: 'Coro Folk-Punk Épico', intervals: [9, 5, 0, 7], qualities: ['m', 'maj', 'maj', 'maj'] },
 
-    const INSP_TEMPLATES_CATALOG = [
-      // Folk / Old-Time
-      { style: 'Folk / Old-Time', role: 'Estribillo', title: 'Himno Folk Directo (I - IV - V - I)', steps: [[0,''], [5,''], [7,''], [0,'']] },
-      { style: 'Folk / Old-Time', role: 'Estrofa', title: 'Rueda Old-Time (I - bVII - I - V)', steps: [[0,''], [10,''], [0,''], [7,'']] },
-      { style: 'Folk / Old-Time', role: 'Estrofa', title: 'Historia de Camino (I - vi - IV - V)', steps: [[0,''], [9,'m'], [5,''], [7,'']] },
-      { style: 'Folk / Old-Time', role: 'Puente', title: 'Giro Menor Relativo (vi - IV - I - V)', steps: [[9,'m'], [5,''], [0,''], [7,'']] },
-      { style: 'Folk / Old-Time', role: 'Estribillo', title: 'Coro Abierto (I - iii - IV - V)', steps: [[0,''], [4,'m'], [5,''], [7,'']] },
-      { style: 'Folk / Old-Time', role: 'Estrofa', title: 'Vals Nostálgico (I - IV - ii - V7)', steps: [[0,''], [5,''], [2,'m'], [7,'7']] },
+      { role: 'Puente', style: 'Folk / Old-Time', name: 'Giro Relativo Menor', intervals: [9, 5, 0, 7], qualities: ['m', 'maj', 'maj', '7'] },
+      { role: 'Puente', style: 'Folk / Old-Time', name: 'Suspensión al V', intervals: [5, 7, 5, 7], qualities: ['maj', 'maj', 'maj', '7sus4'] },
+      { role: 'Puente', style: 'Celta / Modal', name: 'Puente Dórico', intervals: [2, 10, 0, 7], qualities: ['m', 'maj', 'maj', 'maj'] },
+      { role: 'Puente', style: 'Country / Bluegrass', name: 'Llamada al Subdominante', intervals: [5, 5, 0, 7], qualities: ['maj', 'm', 'maj', '7'] },
+      { role: 'Puente', style: 'Gypsy / Taberna', name: 'Cromático de Cabaret', intervals: [9, 8, 7, 7], qualities: ['m', 'aug', '7', '7'] },
+      { role: 'Puente', style: 'Balada Oscura / Folk-Punk', name: 'Descenso Dramático', intervals: [9, 7, 5, 4], qualities: ['m', 'maj', 'maj', '7'] },
+      { role: 'Puente', style: 'Ragtime / Swing', name: 'Puente Ragtime VI - II - V', intervals: [9, 2, 7, 0], qualities: ['7', '7', '7', '6'] },
+      { role: 'Puente', style: 'Ragtime / Swing', name: 'Círculo de Quintas Swing', intervals: [4, 9, 2, 7], qualities: ['7', '7', '7', '7'] },
 
-      // Celta / Modal
-      { style: 'Celta / Modal', role: 'Estribillo', title: 'Épica Celta (I - bVII - IV - I)', steps: [[0,''], [10,''], [5,''], [0,'']] },
-      { style: 'Celta / Modal', role: 'Puente', title: 'Puente Dórico (ii - IV - vi - V)', steps: [[2,'m'], [5,''], [9,'m'], [7,'']] },
-      { style: 'Celta / Modal', role: 'Estrofa', title: 'Trote Dórico (i - IV - i - bVII)', steps: [[0,'m'], [5,''], [0,'m'], [10,'']] },
-      { style: 'Celta / Modal', role: 'Estribillo', title: 'Mixolidio de Gaita (I - bVII - V - I)', steps: [[0,''], [10,''], [7,''], [0,'']] },
-      { style: 'Celta / Modal', role: 'Puente', title: 'Subida Irlandesa (bVII - IV - I - V)', steps: [[10,''], [5,''], [0,''], [7,'']] },
-      { style: 'Celta / Modal', role: 'Estrofa', title: 'Jig Modal (i - bVII - IV - i)', steps: [[0,'m'], [10,''], [5,''], [0,'m']] },
-
-      // Country / Bluegrass
-      { style: 'Country / Bluegrass', role: 'Estribillo', title: 'Subida Bluegrass (IV - I - V7 - I)', steps: [[5,''], [0,''], [7,'7'], [0,'']] },
-      { style: 'Country / Bluegrass', role: 'Estrofa', title: 'Galope Narrativo (I - I - IV - V)', steps: [[0,''], [0,''], [5,''], [7,'']] },
-      { style: 'Country / Bluegrass', role: 'Puente', title: 'Respiro Country (IV - iv - I - V7)', steps: [[5,''], [5,'m'], [0,''], [7,'7']] },
-      { style: 'Country / Bluegrass', role: 'Estribillo', title: 'Brindis Mayor (I - IV - I - V7)', steps: [[0,''], [5,''], [0,''], [7,'7']] },
-      { style: 'Country / Bluegrass', role: 'Estrofa', title: 'Tren del Oeste (I - IV - V - IV)', steps: [[0,''], [5,''], [7,''], [5,'']] },
-      { style: 'Country / Bluegrass', role: 'Puente', title: 'Cambio a Subdominante (I7 - IV - II7 - V7)', steps: [[0,'7'], [5,''], [2,'7'], [7,'7']] },
-
-      // Gypsy / Taberna
-      { style: 'Gypsy / Taberna', role: 'Estribillo', title: 'Clásico de Taberna (I - V - vi - IV)', steps: [[0,''], [7,''], [9,'m'], [5,'']] },
-      { style: 'Gypsy / Taberna', role: 'Puente', title: 'Tensión Taberna (ii - V - I - V7)', steps: [[2,'m'], [7,''], [0,''], [7,'7']] },
-      { style: 'Gypsy / Taberna', role: 'Puente', title: 'Giro Gypsy (vi - iv - I - V7)', steps: [[9,'m'], [5,'m'], [0,''], [7,'7']] },
-      { style: 'Gypsy / Taberna', role: 'Estrofa', title: 'Manouche Menor (i - iv - bVI - V7)', steps: [[0,'m'], [5,'m'], [8,''], [7,'7']] },
-      { style: 'Gypsy / Taberna', role: 'Estribillo', title: 'Balkan Swing (i - V7 - i - IV7)', steps: [[0,'m'], [7,'7'], [0,'m'], [5,'7']] },
-      { style: 'Gypsy / Taberna', role: 'Puente', title: 'Paso Disminuido (i - #idim7 - ii - V7)', steps: [[0,'m'], [1,'dim7'], [2,'m'], [7,'7']] },
-
-      // Balada Oscura / Folk-Punk
-      { style: 'Balada Oscura / Folk-Punk', role: 'Estrofa', title: 'Balada Oscura (i - bVII - bVI - V7)', steps: [[0,'m'], [10,''], [8,''], [7,'7']] },
-      { style: 'Balada Oscura / Folk-Punk', role: 'Estrofa', title: 'Murder Ballad (i - iv - i - V7)', steps: [[0,'m'], [5,'m'], [0,'m'], [7,'7']] },
-      { style: 'Balada Oscura / Folk-Punk', role: 'Estribillo', title: 'Marcha Folk-Punk (I - bVII - IV - V)', steps: [[0,''], [10,''], [5,''], [7,'']] },
-      { style: 'Balada Oscura / Folk-Punk', role: 'Puente', title: 'Descenso Dramático (vi - V - IV - V7)', steps: [[9,'m'], [7,''], [5,''], [7,'7']] },
-      { style: 'Balada Oscura / Folk-Punk', role: 'Puente', title: 'Caída Andaluza (vi - bVII - IV - V7)', steps: [[9,'m'], [10,''], [5,''], [7,'7']] },
-      { style: 'Balada Oscura / Folk-Punk', role: 'Estribillo', title: 'Himno Rebelde (i - bVI - bIII - bVII)', steps: [[0,'m'], [8,''], [3,''], [10,'']] },
-
-      // Ragtime / Swing
-      { style: 'Ragtime / Swing', role: 'Estribillo', title: 'Cierre Ragtime (I - VI7 - II7 - V7)', steps: [[0,''], [9,'7'], [2,'7'], [7,'7']] },
-      { style: 'Ragtime / Swing', role: 'Puente', title: 'Llamada al Solo (ii7 - V7 - iii7 - VI7)', steps: [[2,'m7'], [7,'7'], [4,'m7'], [9,'7']] },
-      { style: 'Ragtime / Swing', role: 'Estrofa', title: 'Blues Rural (I7 - IV7 - I7 - V7)', steps: [[0,'7'], [5,'7'], [0,'7'], [7,'7']] },
-      { style: 'Ragtime / Swing', role: 'Estribillo', title: 'Swing Clásico (I6 - vi7 - ii7 - V7)', steps: [[0,'6'], [9,'m7'], [2,'m7'], [7,'7']] },
-      { style: 'Ragtime / Swing', role: 'Estrofa', title: 'Jug Band (I - I7 - IV - IV#dim7)', steps: [[0,''], [0,'7'], [5,''], [6,'dim7']] },
-      { style: 'Ragtime / Swing', role: 'Puente', title: 'Turnaround Vintage (III7 - VI7 - II7 - V7)', steps: [[4,'7'], [9,'7'], [2,'7'], [7,'7']] }
+      { role: 'Estrofa', style: 'Folk / Old-Time', name: 'Narrativa Old-Time', intervals: [0, 0, 5, 0], qualities: ['maj', 'maj', 'maj', 'maj'] },
+      { role: 'Estrofa', style: 'Folk / Old-Time', name: 'Paso Folk Tranquilo', intervals: [0, 9, 2, 7], qualities: ['maj', 'm', 'm', '7'] },
+      { role: 'Estrofa', style: 'Celta / Modal', name: 'Bordón Celta I - bVII', intervals: [0, 10, 0, 7], qualities: ['5', 'maj', '5', 'm'] },
+      { role: 'Estrofa', style: 'Country / Bluegrass', name: 'Tren de Carga Country', intervals: [0, 5, 7, 0], qualities: ['maj', 'maj', '7', 'maj'] },
+      { role: 'Estrofa', style: 'Gypsy / Taberna', name: 'Valsette de Taberna', intervals: [9, 2, 4, 9], qualities: ['m', 'm', '7', 'm'] },
+      { role: 'Estrofa', style: 'Balada Oscura / Folk-Punk', name: 'Balada Nocturna', intervals: [9, 5, 7, 9], qualities: ['m', 'maj', 'maj', 'm'] },
+      { role: 'Estrofa', style: 'Ragtime / Swing', name: 'Paseo Dixieland', intervals: [0, 1, 2, 7], qualities: ['6', 'dim7', 'm7', '7'] },
+      { role: 'Estrofa', style: 'Ragtime / Swing', name: 'Vuelta Swing Clásica', intervals: [0, 9, 2, 7], qualities: ['maj7', 'm7', 'm7', '7'] }
     ];
 
-    function buildInspirationVariation(varNum) {
-      const styleKeys = Object.keys(INSP_STYLES_META);
-      const items = [];
-      const altEndings = [
-        { tag: 'con 7ª', mutate: (steps) => steps.map((s, i) => (i === steps.length - 1 && !s[1] ? [s[0], '7'] : s)) },
-        { tag: 'con sus4', mutate: (steps) => steps.map((s, i) => (i === steps.length - 1 ? [s[0], 'sus4'] : s)) },
-        { tag: 'invertida', mutate: (steps) => [steps[0], steps[2], steps[1], steps[3]] },
-        { tag: 'con tensión V7', mutate: (steps) => [steps[0], steps[1], steps[2], [7, '7']] },
-        { tag: 'abierta', mutate: (steps) => steps.map((s, i) => (i === 0 && !s[1] ? [s[0], '5'] : s)) }
-      ];
+    function getCurrentKeyRoot() {
+      const chords = splitChordsText(state.song.base.chordsText);
+      const first = chords.map(c => parseChordSymbol(c)).find(p => p && !p.isSilence);
+      return first ? first.root : 'D';
+    }
 
-      styleKeys.forEach((styleKey, sIdx) => {
-        const pool = INSP_TEMPLATES_CATALOG.filter(t => t.style === styleKey);
-        if (!pool.length) return;
-        const pickCount = 2;
-        const offset = ((varNum - 1) * 2 + sIdx) % pool.length;
-        for (let k = 0; k < pickCount; k++) {
-          const base = pool[(offset + k) % pool.length];
-          let steps = base.steps.map(st => [...st]);
-          let title = base.title;
-          if (varNum > 3) {
-            const mut = altEndings[(varNum + sIdx + k) % altEndings.length];
-            steps = mut.mutate(steps);
-            title = `${base.title.split(' (')[0]} • Var. ${mut.tag}`;
-          }
-          items.push({
-            style: styleKey,
-            role: base.role,
-            title,
-            steps
-          });
-        }
+    function buildInspirationBatch(seedIdx) {
+      const keyRoot = getCurrentKeyRoot();
+      const shift = (seedIdx * 5) % INSPIRATION_TEMPLATES.length;
+      const rotated = INSPIRATION_TEMPLATES.slice(shift).concat(INSPIRATION_TEMPLATES.slice(0, shift));
+      return rotated.map((tpl, i) => {
+        const chordsArr = tpl.intervals.map((iv, idx) => {
+          const note = transposeNoteName(keyRoot, iv);
+          const q = tpl.qualities[idx] || 'maj';
+          return q === 'maj' ? note : note + q;
+        });
+        return {
+          id: `insp_${seedIdx}_${i}`,
+          num: `#${seedIdx + 1}.${i + 1}`,
+          role: tpl.role,
+          style: tpl.style,
+          name: tpl.name,
+          chordsText: chordsArr.join(' - ')
+        };
       });
-
-      return {
-        num: varNum,
-        createdAt: Date.now(),
-        items
-      };
     }
 
     function ensureInspirationHistory() {
-      if (!Array.isArray(state.inspHistory) || !state.inspHistory.length) {
-        state.inspHistory = [buildInspirationVariation(1)];
+      if (!state.inspHistory.length) {
+        state.inspHistory.push(buildInspirationBatch(0));
         state.inspCurrentBatch = 0;
       }
-      if (state.inspCurrentBatch < 0 || state.inspCurrentBatch >= state.inspHistory.length) {
-        state.inspCurrentBatch = state.inspHistory.length - 1;
-      }
+    }
+
+    function regenerateInspirationBatch() {
+      state.inspSeed++;
+      state.inspHistory.push(buildInspirationBatch(state.inspSeed));
+      state.inspCurrentBatch = state.inspHistory.length - 1;
+      renderInspirationList();
+      showToast(`💡 Variación #${state.inspHistory.length} generada`);
+    }
+
+    function stepInspBatch(delta) {
+      ensureInspirationHistory();
+      const next = state.inspCurrentBatch + delta;
+      if (next < 0 || next >= state.inspHistory.length) return;
+      state.inspCurrentBatch = next;
+      renderInspirationList();
+    }
+
+    function selectInspBatch(idxStr) {
+      const idx = parseInt(idxStr, 10);
+      if (isNaN(idx) || idx < 0 || idx >= state.inspHistory.length) return;
+      state.inspCurrentBatch = idx;
+      renderInspirationList();
     }
 
     function setInspFilter(role) {
@@ -3877,136 +3981,129 @@
       renderInspirationList();
     }
 
-    function setInspStyleFilter(styleVal) {
-      state.inspStyleFilter = styleVal || 'all';
+    function setInspStyleFilter(st) {
+      state.inspStyleFilter = st || 'all';
       renderInspirationList();
     }
 
-    function selectInspBatch(idxStr) {
-      if (playbackMode === 'insp') stopAllPlayback();
-      const idx = parseInt(idxStr, 10);
-      if (!isNaN(idx) && idx >= 0 && idx < state.inspHistory.length) {
-        state.inspCurrentBatch = idx;
-        renderInspirationList();
+    function playInspirationIdea(flatIdx, chordsText) {
+      if (playbackMode === 'insp' && state.playingInspIdx === flatIdx) {
+        stopAllPlayback();
+        return;
       }
-    }
-
-    function stepInspBatch(delta) {
-      ensureInspirationHistory();
-      const next = state.inspCurrentBatch + delta;
-      if (next < 0 || next >= state.inspHistory.length) return;
-      selectInspBatch(next);
-    }
-
-    function regenerateInspirationBatch() {
-      if (playbackMode === 'insp') stopAllPlayback();
-      ensureInspirationHistory();
-      state.inspSeed++;
-      const nextNum = state.inspHistory.length + 1;
-      state.inspHistory.push(buildInspirationVariation(nextNum));
-      state.inspCurrentBatch = state.inspHistory.length - 1;
+      stopAllPlayback();
+      const chords = splitChordsText(chordsText);
+      if (!chords.length) return;
+      playbackMode = 'insp';
+      state.playingInspIdx = flatIdx;
       renderInspirationList();
-      showToast(`💡 Variación #${nextNum} generada y guardada en el historial`);
+
+      let idx = 0;
+      let expectedTime = performance.now();
+      const step = () => {
+        if (playbackMode !== 'insp' || state.playingInspIdx !== flatIdx) return;
+        const parsed = parseChordSymbol(chords[idx]);
+        const bpm = Number(state.song.base.bpm) || 112;
+        const ts = state.song.base.timeSig || '4/4';
+        const beats = ts === '3/4' ? 3 : (ts === '2/4' ? 2 : (ts === '6/8' ? 3 : 4));
+        const stepMs = beats * (60000 / bpm);
+        playBarRhythm(parsed, 0, state.song.base.style, ts, bpm, 1, 0);
+        idx = (idx + 1) % chords.length;
+        expectedTime += stepMs;
+        playbackHandle = setTimeout(step, Math.max(20, expectedTime - performance.now()));
+      };
+
+      ensureAudioReady().then(() => {
+        if (playbackMode !== 'insp' || state.playingInspIdx !== flatIdx) return;
+        expectedTime = performance.now();
+        step();
+      });
+    }
+
+    function applyInspirationIdea(chordsText) {
+      stopAllPlayback();
+      state.song.base.chordsText = chordsText;
+      state.song.base.voicings = {};
+      state.song.base.durations = {};
+      document.getElementById('base-chords-input').value = chordsText;
+      renderBaseChords();
+      recordSongHistory();
+      saveLocalState();
+      showToast('✨ Progresión aplicada a la Rueda Base');
     }
 
     function renderInspirationList() {
-      const box = document.getElementById('insp-list');
-      if (!box) return;
       ensureInspirationHistory();
-
-      // Actualizar barra de historial de variaciones
+      const listEl = document.getElementById('insp-list');
       const histSel = document.getElementById('insp-history-select');
       const prevBtn = document.getElementById('btn-insp-prev');
       const nextBtn = document.getElementById('btn-insp-next');
-      const styleSel = document.getElementById('insp-style-select');
-      if (styleSel) styleSel.value = state.inspStyleFilter || 'all';
+      if (!listEl) return;
+
       if (histSel) {
-        histSel.innerHTML = state.inspHistory.map((b, i) =>
-          `<option value="${i}">Variación #${b.num} (${i + 1}/${state.inspHistory.length})</option>`
+        histSel.innerHTML = state.inspHistory.map((_, idx) =>
+          `<option value="${idx}" ${idx === state.inspCurrentBatch ? 'selected' : ''}>Variación #${idx + 1}</option>`
         ).join('');
-        histSel.value = String(state.inspCurrentBatch);
       }
       if (prevBtn) prevBtn.disabled = state.inspCurrentBatch <= 0;
       if (nextBtn) nextBtn.disabled = state.inspCurrentBatch >= state.inspHistory.length - 1;
 
-      const batch = state.inspHistory[state.inspCurrentBatch];
-      const firstChord = parseChordSymbol(splitChordsText(state.song.base.chordsText)[0] || 'D');
-      const r = firstChord && !firstChord.isSilence ? firstChord.root : 'D';
-      const iv = st => transposeNoteName(r, st);
-
-      const filtered = batch.items.filter(item => {
-        const okRole = state.inspRoleFilter === 'all' || item.role === state.inspRoleFilter;
-        const okStyle = state.inspStyleFilter === 'all' || item.style === state.inspStyleFilter;
-        return okRole && okStyle;
-      });
+      const batch = state.inspHistory[state.inspCurrentBatch] || [];
+      const filtered = batch.filter(item =>
+        (state.inspRoleFilter === 'all' || item.role === state.inspRoleFilter) &&
+        (state.inspStyleFilter === 'all' || item.style === state.inspStyleFilter)
+      );
 
       if (!filtered.length) {
-        box.innerHTML = `<div class="th-card border border-dashed rounded-xl p-4 text-center text-xs th-muted">No hay ruedas para ese filtro en la <strong>Variación #${batch.num}</strong>. Prueba otro estilo o pulsa <strong>+ Nueva Variación</strong>.</div>`;
+        listEl.innerHTML = `<div class="text-xs th-muted text-center py-4">No hay ideas con ese filtro en esta variación.</div>`;
         return;
       }
 
-      // Agrupar por estilo manteniendo el orden de estilos
-      const grouped = new Map();
+      const byStyle = new Map();
       filtered.forEach(item => {
-        if (!grouped.has(item.style)) grouped.set(item.style, []);
-        grouped.get(item.style).push(item);
+        if (!byStyle.has(item.style)) byStyle.set(item.style, []);
+        byStyle.get(item.style).push(item);
       });
 
-      let cardCounter = 0;
+      let flatIdx = 0;
       let html = '';
-      grouped.forEach((items, styleKey) => {
-        const meta = INSP_STYLES_META[styleKey] || { icon: '🎵', label: styleKey };
+      byStyle.forEach((items, styleName) => {
         html += `<div class="space-y-1.5">
-          <div class="text-[11px] font-mono-code font-extrabold uppercase tracking-wider th-accent px-1 flex items-center justify-between">
-            <span>${meta.icon} ${meta.label}</span>
-            <span class="th-muted font-normal">Var. #${batch.num}</span>
-          </div>`;
-
-        items.forEach(t => {
-          cardCounter++;
-          const playIdx = state.inspCurrentBatch * 100 + cardCounter;
-          const isPlaying = playbackMode === 'insp' && state.playingInspIdx === playIdx;
-          const chordsStr = t.steps.map(([st, suf]) => iv(st) + suf).join(' - ');
-          const latinLine = t.steps.map(([st, suf]) => chordToLatin(iv(st) + suf)).join(' - ');
-
-          html += `
-            <div class="th-card border rounded-xl p-2.5 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 text-xs">
-              <div class="min-w-0 flex-1">
-                <div class="break-words">
-                  <span class="inline-block font-mono-code font-extrabold px-1.5 py-0.5 rounded bg-amber-500/15 th-accent mr-1">#${batch.num}.${cardCounter}</span>
-                  <span class="font-bold th-accent">[${t.role}]</span> <strong>${t.title}</strong>
+          <div class="text-[11px] font-mono-code font-bold uppercase th-accent px-1">🎨 ${styleName}</div>
+          ${items.map(it => {
+            const curIdx = flatIdx++;
+            const isPlaying = playbackMode === 'insp' && state.playingInspIdx === curIdx;
+            const latinLine = splitChordsText(it.chordsText).map(c => chordToLatin(c)).join(' - ');
+            return `
+              <div class="th-card border rounded-xl p-2.5 flex items-center justify-between gap-2 text-xs">
+                <div class="min-w-0 flex-1">
+                  <div class="flex items-center gap-1.5 flex-wrap">
+                    <span class="font-mono-code font-bold th-accent">${it.num}</span>
+                    <span class="px-1.5 py-0.5 rounded bg-amber-500/10 text-[10px] font-bold">${it.role}</span>
+                    <strong class="truncate">${it.name}</strong>
+                  </div>
+                  <div class="font-mono-code font-bold th-accent mt-0.5">${it.chordsText}</div>
+                  <div class="text-[11px] italic th-muted">${latinLine}</div>
                 </div>
-                <div class="font-mono-code th-muted mt-0.5 truncate">${chordsStr}</div>
-                <div class="text-[11px] italic th-muted truncate">${latinLine}</div>
+                <div class="flex items-center gap-1.5 shrink-0">
+                  <button type="button" onclick="playInspirationIdea(${curIdx}, '${it.chordsText}')" class="th-input border hover:border-amber-500 px-2.5 py-1.5 rounded-lg font-bold">${isPlaying ? '■' : '▶'}</button>
+                  <button type="button" onclick="applyInspirationIdea('${it.chordsText}')" class="bg-amber-500 hover:bg-amber-400 text-stone-950 px-2.5 py-1.5 rounded-lg font-extrabold">Usar</button>
+                </div>
               </div>
-              <div class="flex items-center gap-1.5 shrink-0">
-                <button type="button" onclick="togglePlayInspiration(${playIdx}, '${chordsStr}')" class="px-2.5 py-1.5 rounded-lg font-bold ${isPlaying ? 'bg-rose-600 text-white' : 'bg-amber-500 text-stone-950'}">${isPlaying ? '■' : '▶'}</button>
-                <button type="button" onclick="applyProgressionToBase('${chordsStr}')" class="th-input border hover:border-amber-500 px-2.5 py-1.5 rounded-lg font-bold">Usar</button>
-              </div>
-            </div>
-          `;
-        });
-        html += `</div>`;
+            `;
+          }).join('')}
+        </div>`;
       });
-
-      box.innerHTML = html;
-    }
-
-    function applyProgressionToBase(chordsStr) {
-      state.song.base.chordsText = chordsStr;
-      state.song.base.voicings = {};
-      state.song.base.durations = {};
-      document.getElementById('base-chords-input').value = chordsStr;
-      renderBaseChords();
-      recordSongHistory();
-      saveLocalState();
+      listEl.innerHTML = html;
     }
 
     function saveBaseToBank() {
+      const chordsText = (state.song.base.chordsText || '').trim();
+      if (!chordsText) return;
       state.bank.unshift({
-        id: 'b_' + Date.now(),
-        name: `${state.song.title || 'Bloque'} (${state.song.base.chordsText.slice(0, 18)})`,
-        chordsText: state.song.base.chordsText,
+        id: 'bank_' + Date.now(),
+        name: `${state.song.title || 'Vuelta'} (${chordsText.slice(0, 22)})`,
+        chordsText,
         style: state.song.base.style,
         timeSig: state.song.base.timeSig,
         bpm: state.song.base.bpm
@@ -4016,47 +4113,136 @@
       showToast('★ Bloque guardado en el banco');
     }
 
+    function loadBankItemToBase(id) {
+      const item = state.bank.find(b => b.id === id);
+      if (!item) return;
+      state.song.base.chordsText = item.chordsText;
+      state.song.base.style = item.style || 'folk';
+      state.song.base.timeSig = item.timeSig || '4/4';
+      state.song.base.bpm = Number(item.bpm) || 112;
+      applySongToUI();
+      recordSongHistory();
+      saveLocalState();
+      showToast('★ Bloque cargado en Rueda Base');
+    }
+
+    function deleteBankItem(id) {
+      state.bank = state.bank.filter(b => b.id !== id);
+      renderBankList();
+      saveLocalState();
+    }
+
     function renderBankList() {
-      const box = document.getElementById('bank-list');
-      if (!box) return;
-      box.innerHTML = state.bank.map(b => `
-        <div class="th-card border rounded-xl p-2.5 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 text-xs">
+      const el = document.getElementById('bank-list');
+      if (!el) return;
+      if (!state.bank.length) {
+        el.innerHTML = `<div class="text-xs th-muted text-center py-4">Sin bloques guardados todavía.</div>`;
+        return;
+      }
+      el.innerHTML = state.bank.map(b => `
+        <div class="th-card border rounded-xl p-2.5 flex items-center justify-between gap-2 text-xs">
           <div class="min-w-0 flex-1">
-            <strong class="block break-words">${b.name}</strong>
-            <div class="font-mono-code th-accent mt-0.5 truncate">${b.chordsText}</div>
+            <strong class="block truncate">${b.name}</strong>
+            <div class="font-mono-code font-bold th-accent truncate">${b.chordsText}</div>
           </div>
-          <button type="button" onclick="applyProgressionToBase('${b.chordsText}')" class="th-input border hover:border-amber-500 px-2.5 py-1.5 rounded-lg font-bold shrink-0">Cargar</button>
+          <div class="flex items-center gap-1.5 shrink-0">
+            <button type="button" onclick="loadBankItemToBase('${b.id}')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-2.5 py-1.5 rounded-lg font-bold">Usar</button>
+            <button type="button" onclick="deleteBankItem('${b.id}')" class="th-input border hover:border-rose-500 text-rose-400 px-2.5 py-1.5 rounded-lg font-bold">✕</button>
+          </div>
         </div>
       `).join('');
     }
 
+    // =========================================================================
+    // 10. GESTIÓN DE CANCIONES, SINCRONIZACIÓN CON GOOGLE DRIVE E IMPORTADOR
+    // =========================================================================
+    function showGlobalProgress(pct, text) {
+      const wrap = document.getElementById('global-progress-wrap');
+      const bar = document.getElementById('global-progress-bar');
+      const lbl = document.getElementById('global-progress-text');
+      if (wrap) wrap.classList.remove('hidden');
+      if (bar) bar.style.width = `${pct}%`;
+      if (lbl) lbl.textContent = text || 'Sincronizando...';
+    }
+
+    function hideGlobalProgress() {
+      document.getElementById('global-progress-wrap')?.classList.add('hidden');
+    }
+
     function onSongTitleChange() {
       state.song.title = document.getElementById('song-title-input').value;
+      state.song.updatedAt = Date.now();
       saveLocalState();
     }
 
     function onSongFolderChange() {
       state.song.folder = document.getElementById('song-folder-select').value;
+      state.song.updatedAt = Date.now();
       saveLocalState();
     }
 
     function updateLockUI() {
       const badge = document.getElementById('lock-badge');
-      if (badge) badge.textContent = state.currentUser ? `🔓 Editando: ${state.currentUser.name}` : '🔓 Editando';
+      const btn = document.getElementById('btn-force-unlock');
+      if (!badge) return;
+      const lockedBy = state.song.lockedBy;
+      const me = state.currentUser?.name;
+      if (lockedBy && lockedBy !== me) {
+        badge.textContent = `🔒 Editando: ${lockedBy}`;
+        badge.className = 'text-xs font-semibold text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl';
+        btn?.classList.remove('hidden');
+      } else {
+        badge.textContent = '🔓 Editando';
+        badge.className = 'text-xs font-semibold text-emerald-500 bg-emerald-500/10 border border-emerald-500/30 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl';
+        btn?.classList.add('hidden');
+      }
     }
 
     function forceUnlockCurrentSong() {
-      state.song.lockedBy = null;
+      state.song.lockedBy = state.currentUser?.name || null;
       updateLockUI();
+      saveLocalState();
+      showToast('🔓 Canción desbloqueada');
+    }
+
+    function applySongToUI() {
+      const titleInp = document.getElementById('song-title-input');
+      const folderSel = document.getElementById('song-folder-select');
+      const baseInp = document.getElementById('base-chords-input');
+      const styleSel = document.getElementById('base-style-select');
+      const tsSel = document.getElementById('base-timesig-select');
+      const bpmInp = document.getElementById('base-bpm-input');
+      const structBpmInp = document.getElementById('struct-bpm-input');
+
+      if (titleInp) titleInp.value = state.song.title || '';
+      if (folderSel) folderSel.value = state.song.folder || 'Setlist Próximo Bolo';
+      if (baseInp) baseInp.value = state.song.base.chordsText || '';
+      if (styleSel) styleSel.value = state.song.base.style || 'folk';
+      if (tsSel) tsSel.value = state.song.base.timeSig || '4/4';
+      if (bpmInp) bpmInp.value = String(state.song.base.bpm || 112);
+      if (structBpmInp) structBpmInp.value = String(state.song.base.bpm || 112);
+      document.getElementById('global-bpm-lbl').textContent = `${state.song.base.bpm || 112} BPM`;
+
+      updateStyleDescBanner();
+      updateLockUI();
+      renderBaseChords();
+      renderStructureList();
+      renderRecStructureGuide();
+      renderSongTakesList();
+      hydrateTakesFromIdb();
+      renderInspirationList();
+      renderBankList();
+      renderMetronomeControls();
     }
 
     function createNewSong() {
+      stopAllPlayback();
       state.song = {
         id: 'song_' + Date.now(),
         title: 'Nuevo Tema del Culto',
         folder: 'Setlist Próximo Bolo',
         updatedAt: Date.now(),
-        lockedBy: null,
+        lockedBy: state.currentUser?.name || null,
         base: {
           chordsText: 'D5 - G - A - D5',
           voicings: {},
@@ -4071,29 +4257,93 @@
       applySongToUI();
       recordSongHistory(true);
       saveLocalState();
-      showToast('✨ Nueva canción creada');
+      showToast('✨ Nuevo tema creado');
     }
 
-    function applySongToUI() {
-      document.getElementById('song-title-input').value = state.song.title || '';
-      document.getElementById('song-folder-select').value = state.song.folder || 'Setlist Próximo Bolo';
-      document.getElementById('base-chords-input').value = state.song.base.chordsText || '';
-      document.getElementById('base-style-select').value = state.song.base.style || 'folk';
-      document.getElementById('base-timesig-select').value = state.song.base.timeSig || '4/4';
-      document.getElementById('base-bpm-input').value = String(state.song.base.bpm || 112);
-      const structInp = document.getElementById('struct-bpm-input');
-      if (structInp) structInp.value = String(state.song.base.bpm || 112);
-      document.getElementById('global-bpm-lbl').textContent = `${state.song.base.bpm || 112} BPM`;
-      populateQuickChordSelect();
-      updateStyleDescBanner();
-      renderBaseChords();
-      renderStructureList();
-      renderRecStructureGuide();
-      renderSongTakesList();
-      hydrateTakesFromIdb();
-      renderInspirationList();
-      renderBankList();
-      updateLockUI();
+    function loadProjectById(id) {
+      const found = state.projects.find(p => p.id === id);
+      if (!found) return;
+      stopAllPlayback();
+      state.song = JSON.parse(JSON.stringify(found));
+      if (!state.song.base.voicings) state.song.base.voicings = {};
+      if (!state.song.base.durations) state.song.base.durations = {};
+      if (!Array.isArray(state.song.structure)) state.song.structure = [];
+      if (!Array.isArray(state.song.takes)) state.song.takes = [];
+      applySongToUI();
+      recordSongHistory(true);
+      saveLocalState();
+      closeSongsModal();
+      switchTab('componer');
+      showToast(`📂 Cargada: ${state.song.title}`);
+    }
+
+    function deleteProjectById(id) {
+      state.projects = state.projects.filter(p => p.id !== id);
+      saveLocalState();
+      renderSongsModalList();
+      renderSongsFoldersPage();
+      showToast('🗑 Canción eliminada de la lista');
+    }
+
+    async function saveCurrentProject(toCloud = true, notify = true) {
+      state.song.updatedAt = Date.now();
+      state.song.lockedBy = state.currentUser?.name || state.song.lockedBy || null;
+      const cleanSong = JSON.parse(JSON.stringify(state.song));
+      cleanSong.takes = (cleanSong.takes || []).map(t => ({
+        id: t.id,
+        name: t.name,
+        author: t.author,
+        duration: t.duration,
+        createdAt: t.createdAt,
+        driveUrl: t.driveUrl || ''
+      }));
+
+      const idx = state.projects.findIndex(p => p.id === cleanSong.id);
+      if (idx >= 0) state.projects[idx] = cleanSong;
+      else state.projects.unshift(cleanSong);
+      saveLocalState();
+      renderSongsFoldersPage();
+
+      if (!toCloud) return;
+      showGlobalProgress(40, 'Guardando en Google Drive...');
+      try {
+        await fetch(GAS_WEBAPP_URL, {
+          method: 'POST',
+          body: JSON.stringify({
+            action: 'saveProjects',
+            projects: state.projects,
+            bank: state.bank
+          })
+        });
+        if (notify) showToast('☁️ Guardado en Google Drive');
+      } catch (e) {
+        if (notify) showToast('⚠️ Guardado localmente (sin conexión a Drive)');
+      } finally {
+        hideGlobalProgress();
+      }
+    }
+
+    async function syncProjectsFromCloud(notify = false) {
+      if (notify) showGlobalProgress(35, 'Sincronizando repertorio...');
+      try {
+        const res = await fetch(`${GAS_WEBAPP_URL}?action=getProjects&t=${Date.now()}`);
+        const data = await res.json();
+        if (Array.isArray(data.projects)) {
+          state.projects = data.projects;
+        }
+        if (Array.isArray(data.bank) && data.bank.length) {
+          state.bank = data.bank;
+        }
+        saveLocalState();
+        renderSongsModalList();
+        renderSongsFoldersPage();
+        renderBankList();
+        if (notify) showToast(`☁️ Sincronizadas ${state.projects.length} canciones`);
+      } catch (e) {
+        if (notify) showToast('⚠️ No se pudo conectar con Google Drive');
+      } finally {
+        hideGlobalProgress();
+      }
     }
 
     function openSongsModal() {
@@ -4109,18 +4359,18 @@
       const box = document.getElementById('songs-modal-list');
       if (!box) return;
       if (!state.projects.length) {
-        box.innerHTML = `<div class="text-xs th-muted text-center py-6">No hay canciones guardadas todavía. Pulsa <strong>💾 Guardar en Nube</strong> para guardar la actual.</div>`;
+        box.innerHTML = `<div class="text-xs th-muted text-center py-6">No hay canciones guardadas aún.</div>`;
         return;
       }
       box.innerHTML = state.projects.map(p => `
-        <div class="th-subcard border rounded-xl p-3 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 text-xs">
+        <div class="th-subcard border rounded-xl p-3 flex items-center justify-between gap-2 text-xs">
           <div class="min-w-0 flex-1">
-            <div class="font-bold text-sm break-words">${p.title || 'Sin título'}</div>
-            <div class="th-muted">${p.folder || 'Repertorio Activo'} • ${p.base?.bpm || 112} BPM</div>
+            <strong class="block text-sm truncate">${p.title || 'Sin título'}</strong>
+            <div class="th-muted truncate">${p.folder || 'Repertorio Activo'} • ${p.base?.chordsText || ''}</div>
           </div>
           <div class="flex items-center gap-1.5 shrink-0">
-            <button type="button" onclick="loadProjectById('${p.id}')" class="bg-amber-500 text-stone-950 font-bold px-3 py-1.5 rounded-lg">Abrir</button>
-            <button type="button" onclick="deleteProjectById('${p.id}')" class="th-input border text-rose-400 font-bold px-2.5 py-1.5 rounded-lg">✕</button>
+            <button type="button" onclick="loadProjectById('${p.id}')" class="bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold px-3 py-1.5 rounded-lg">Abrir</button>
+            <button type="button" onclick="deleteProjectById('${p.id}')" class="th-input border hover:border-rose-500 text-rose-400 font-bold px-2.5 py-1.5 rounded-lg">✕</button>
           </div>
         </div>
       `).join('');
@@ -4130,114 +4380,71 @@
       const container = document.getElementById('songs-folders-container');
       if (!container) return;
       const q = (document.getElementById('songs-page-search')?.value || '').trim().toLowerCase();
-      const folders = ['Setlist Próximo Bolo', 'Repertorio Activo', 'Bocetos / Ideas'];
-      container.innerHTML = folders.map(folder => {
-        const items = state.projects.filter(p => (p.folder || 'Repertorio Activo') === folder && (!q || (p.title || '').toLowerCase().includes(q)));
+      const folders = ['Setlist Próximo Bolo', 'Repertorio Activo', 'Versiones', 'Bocetos / Ideas'];
+
+      container.innerHTML = folders.map(folderName => {
+        const items = state.projects.filter(p => {
+          const f = p.folder || 'Repertorio Activo';
+          if (f !== folderName) return false;
+          if (!q) return true;
+          return (p.title || '').toLowerCase().includes(q) || (p.base?.chordsText || '').toLowerCase().includes(q);
+        });
         return `
-          <div class="th-subcard border rounded-2xl p-4 space-y-2.5">
+          <div class="th-subcard border rounded-2xl p-3.5 space-y-2.5">
             <div class="flex items-center justify-between">
-              <h3 class="font-serif-title font-bold text-base">${folder}</h3>
-              <span class="text-xs font-mono-code th-accent font-bold">${items.length} temas</span>
+              <h3 class="font-serif-title font-bold text-base th-accent">📁 ${folderName}</h3>
+              <span class="text-xs font-mono-code th-muted">${items.length} temas</span>
             </div>
-            ${items.length ? items.map(p => `
-              <div class="th-card border rounded-xl p-3 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 text-xs">
-                <div class="min-w-0 flex-1">
-                  <strong class="text-sm block break-words">${p.title}</strong>
-                  <div class="font-mono-code th-muted truncate">${p.base?.chordsText || ''} • ${p.base?.bpm || 112} BPM</div>
+            ${items.length ? `<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+              ${items.map(p => `
+                <div class="th-card border rounded-xl p-3 flex flex-col justify-between gap-2 text-xs">
+                  <div class="min-w-0">
+                    <strong class="block text-sm truncate">${p.title || 'Sin título'}</strong>
+                    <div class="font-mono-code th-accent truncate mt-0.5">${p.base?.chordsText || ''}</div>
+                    <div class="th-muted mt-0.5">${(p.structure || []).length} partes • ${p.base?.bpm || 112} BPM</div>
+                  </div>
+                  <div class="flex items-center justify-end gap-1.5 pt-1 border-t" style="border-color: var(--border-main);">
+                    <button type="button" onclick="loadProjectById('${p.id}')" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1.5 rounded-lg">Abrir</button>
+                    <button type="button" onclick="deleteProjectById('${p.id}')" class="th-input border hover:border-rose-500 text-rose-400 font-bold px-2.5 py-1.5 rounded-lg">✕</button>
+                  </div>
                 </div>
-                <button type="button" onclick="loadProjectById('${p.id}'); switchTab('componer');" class="bg-amber-500 text-stone-950 font-bold px-3 py-1.5 rounded-xl shrink-0">Abrir en Estudio</button>
-              </div>
-            `).join('') : `<div class="text-xs th-muted">Carpeta vacía</div>`}
+              `).join('')}
+            </div>` : `<div class="text-xs th-muted italic">Carpeta vacía</div>`}
           </div>
         `;
       }).join('');
     }
 
-    function loadProjectById(id) {
-      const found = state.projects.find(p => p.id === id);
-      if (!found) return;
-      state.song = JSON.parse(JSON.stringify(found));
-      if (!Array.isArray(state.song.takes)) state.song.takes = [];
-      applySongToUI();
-      recordSongHistory(true);
-      saveLocalState();
-      closeSongsModal();
-      showToast(`📂 Cargada: ${state.song.title}`);
-    }
-
-    function deleteProjectById(id) {
-      state.projects = state.projects.filter(p => p.id !== id);
-      saveLocalState();
-      renderSongsModalList();
-      renderSongsFoldersPage();
-    }
-
-    async function saveCurrentProject(toCloud = true, notify = true) {
-      state.song.updatedAt = Date.now();
-      const cleanSong = JSON.parse(JSON.stringify(state.song));
-      const idx = state.projects.findIndex(p => p.id === cleanSong.id);
-      if (idx >= 0) state.projects[idx] = cleanSong;
-      else state.projects.unshift(cleanSong);
-      saveLocalState();
-      renderSongsModalList();
-      renderSongsFoldersPage();
-      if (toCloud && GAS_WEBAPP_URL) {
-        try {
-          await fetch(GAS_WEBAPP_URL, {
-            method: 'POST',
-            mode: 'no-cors',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'saveAll', projects: state.projects, bank: state.bank })
-          });
-        } catch (e) {}
-      }
-      if (notify) showToast('💾 Canción guardada');
-    }
-
-    async function syncProjectsFromCloud(notify = false) {
-      if (!GAS_WEBAPP_URL) return;
-      try {
-        const res = await fetch(`${GAS_WEBAPP_URL}?action=loadAll&t=${Date.now()}`);
-        const data = await res.json();
-        if (data && Array.isArray(data.projects)) {
-          state.projects = data.projects;
-          if (Array.isArray(data.bank) && data.bank.length) state.bank = data.bank;
-          saveLocalState();
-          renderSongsModalList();
-          renderSongsFoldersPage();
-          if (notify) showToast('☁️ Repertorio sincronizado');
-        }
-      } catch (e) {
-        if (notify) showToast('⚠️ Modo local activo');
-      }
-    }
-
     function exportProjectsJson() {
       const blob = new Blob([JSON.stringify({ projects: state.projects, bank: state.bank }, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = 'billy_mugre_repertorio.json';
+      a.href = url;
+      a.download = `billy_mugre_repertorio_${new Date().toISOString().slice(0, 10)}.json`;
       a.click();
+      URL.revokeObjectURL(url);
     }
 
     function importProjectsJson(ev) {
-      const file = ev.target.files?.[0];
+      const file = ev.target.files && ev.target.files[0];
       if (!file) return;
       const reader = new FileReader();
       reader.onload = () => {
         try {
-          const data = JSON.parse(reader.result);
-          if (Array.isArray(data.projects)) state.projects = data.projects;
-          if (Array.isArray(data.bank)) state.bank = data.bank;
+          const parsed = JSON.parse(String(reader.result || '{}'));
+          if (Array.isArray(parsed.projects)) state.projects = parsed.projects;
+          if (Array.isArray(parsed.bank)) state.bank = parsed.bank;
           saveLocalState();
           renderSongsModalList();
           renderSongsFoldersPage();
-          showToast('⬆ Repertorio importado');
+          renderBankList();
+          showToast('⬆ Repertorio .JSON importado');
         } catch (e) {
-          showToast('⚠️ Archivo JSON inválido');
+          showToast('⚠️ Archivo .JSON no válido');
         }
       };
       reader.readAsText(file);
+      ev.target.value = '';
     }
 
     function resetCleanCloudJson() {
@@ -4245,21 +4452,21 @@
       saveLocalState();
       renderSongsModalList();
       renderSongsFoldersPage();
-      showToast('🧹 Lista limpiada');
+      saveCurrentProject(true, true);
     }
 
     // =========================================================================
-    // 10. DICCIONARIO, DETECTOR (CON CEJILLA Y CUERDA MUDA) Y ESCALAS
+    // 10B. DICCIONARIO DE ACORDES, DETECTOR DE MÁSTIL Y ESCALAS/MODOS
     // =========================================================================
-    function setDictRoot(r) {
-      state.dictRoot = r;
+    function setDictRoot(root) {
+      state.dictRoot = root;
       renderChordDictionary();
     }
 
-    function setDictType(t) {
-      state.dictType = t;
+    function setDictType(type) {
+      state.dictType = type;
       document.querySelectorAll('#dict-type-btns button').forEach(b => {
-        const active = b.dataset.type === t;
+        const active = b.dataset.type === type;
         b.className = active
           ? 'px-3 py-1.5 rounded-lg bg-amber-500 text-stone-950 text-xs font-bold'
           : 'px-3 py-1.5 rounded-lg th-input border text-xs font-bold';
@@ -4270,327 +4477,325 @@
     function renderChordDictionary() {
       const rootWrap = document.getElementById('dict-root-btns');
       const grid = document.getElementById('dict-grid');
+      const badge = document.getElementById('dict-count-badge');
       if (!rootWrap || !grid) return;
 
       rootWrap.innerHTML = NOTES_SHARP.map(n => {
         const active = state.dictRoot === n;
-        return `<button type="button" onclick="setDictRoot('${n}')" class="px-3 py-1.5 rounded-lg text-xs font-bold ${active ? 'bg-amber-500 text-stone-950' : 'th-input border'}">${n}</button>`;
+        return `<button type="button" onclick="setDictRoot('${n}')" class="px-3 py-1.5 rounded-lg text-xs font-bold ${active ? 'bg-amber-500 text-stone-950' : 'th-input border'}">${n} <em class="font-normal opacity-80">(${noteToLatin(n)})</em></button>`;
       }).join('');
 
       const types = state.dictType === 'all' ? Object.keys(CHORD_INTERVALS) : [state.dictType];
       const cards = [];
-
-      types.forEach(t => {
-        const sym = t === 'maj' ? state.dictRoot : state.dictRoot + t;
-        const parsed = parseChordSymbol(sym);
+      types.forEach(suf => {
+        const rawTok = suf === 'maj' ? state.dictRoot : state.dictRoot + suf;
+        const parsed = parseChordSymbol(rawTok);
         if (!parsed) return;
-        const voicings = getChordVoicings(parsed, state.dictType === 'all' ? 1 : 8);
-        voicings.forEach((frets, idx) => {
+        const voicings = getChordVoicings(parsed, 4);
+        voicings.forEach((frets, vIdx) => {
           cards.push(`
-            <button type="button" onclick="playChordStrum([${frets.join(',')}], 0, 'down', 1.1, 0.23)" class="chord-pill-big text-center space-y-1.5">
+            <div onclick="playChordStrum([${frets.join(',')}], 0, 'down', 1.0, 0.23)" class="chord-pill-big cursor-pointer flex flex-col justify-between gap-1 text-center">
               <div class="flex items-center justify-between text-[10px] font-mono-code th-muted">
-                <span class="truncate">${frets.join('-')}</span>
-                <span class="shrink-0">#${idx + 1}</span>
+                <span>Pos.${vIdx + 1}</span>
+                <span>${frets.join('-')}</span>
               </div>
               <div>
-                <div class="font-serif-title text-base sm:text-lg font-extrabold th-accent leading-tight truncate">${parsed.display}</div>
-                <div class="text-[11px] italic th-muted leading-tight truncate">${chordToLatin(parsed)}</div>
+                <div class="font-serif-title text-base font-extrabold th-accent">${parsed.display}</div>
+                <div class="text-[11px] italic th-muted">${chordToLatin(parsed)}</div>
               </div>
               ${renderChordSvg(frets, true)}
-            </button>
+            </div>
           `);
         });
       });
 
+      if (badge) badge.textContent = `${cards.length} posiciones`;
       grid.innerHTML = cards.join('');
-      const badge = document.getElementById('dict-count-badge');
-      if (badge) badge.textContent = `${cards.length} posturas`;
     }
 
-    // Detector de mástil con el diseño de Escalas, cejilla al pulsar traste y muteo fiable
-    function renderFretboardDetector() {
-      const wrap = document.getElementById('fretboard-detector-wrap');
-      if (!wrap) return;
+    function resetFretboardDetector() {
       const openMidis = getOpenStringsMidi();
-      const maxFret = (INSTRUMENTS[state.inst]?.maxFret) || 12;
+      state.detectorFrets = new Array(openMidis.length).fill(0);
+      renderFretboardDetector();
+    }
+
+    function toggleDetectorStringMute(sIdx) {
+      const openMidis = getOpenStringsMidi();
       if (state.detectorFrets.length !== openMidis.length) {
         state.detectorFrets = new Array(openMidis.length).fill(0);
       }
-
-      let html = `<table class="w-full text-center border-collapse text-xs font-mono-code"><thead><tr><th class="p-1.5 th-muted">Cuerda</th>`;
-      for (let f = 0; f <= maxFret; f++) {
-        html += `<th class="p-1"><button type="button" onclick="applyDetectorBarre(${f})" title="Colocar cejilla en traste ${f}" class="w-7 h-7 rounded-lg th-subcard border hover:border-amber-500 hover:text-amber-400 font-bold th-muted">${f}</button></th>`;
-      }
-      html += `</tr></thead><tbody>`;
-
-      openMidis.forEach((om, sIdx) => {
-        const curFret = state.detectorFrets[sIdx];
-        const isMuted = curFret === -1;
-        html += `<tr class="border-t" style="border-color: var(--border-main);">
-          <td class="p-1.5 whitespace-nowrap">
-            <div class="inline-flex items-center gap-1">
-              <span class="font-bold ${isMuted ? 'th-muted line-through' : 'th-accent'}">${midiToNote(om)}</span>
-              <button type="button" onclick="toggleDetectorStringMute(${sIdx})" title="${isMuted ? 'Activar cuerda' : 'Silenciar cuerda'}" class="px-1.5 py-0.5 rounded-md text-[10px] font-bold border ${isMuted ? 'bg-rose-600/20 border-rose-500 text-rose-400' : 'th-subcard hover:border-amber-500 th-muted'}">${isMuted ? '✕' : '🔊'}</button>
-            </div>
-          </td>`;
-        for (let f = 0; f <= maxFret; f++) {
-          const active = curFret === f;
-          const note = NOTES_SHARP[(om + f) % 12];
-          html += `<td class="p-1"><button type="button" onclick="toggleDetectorFret(${sIdx}, ${f})" class="w-8 h-8 rounded-full font-extrabold transition-all ${active ? 'bg-amber-500 text-stone-950 scale-105' : (isMuted ? 'opacity-25 th-subcard border' : 'bg-amber-500/10 border border-amber-500/30 th-muted hover:border-amber-500')}">${note}</button></td>`;
-        }
-        html += `</tr>`;
-      });
-      html += `</tbody></table>`;
-      wrap.innerHTML = html;
-      identifyDetectedChord();
+      state.detectorFrets[sIdx] = state.detectorFrets[sIdx] === -1 ? 0 : -1;
+      playPercussiveMute(0, 0.22);
+      renderFretboardDetector();
     }
 
-    function applyDetectorBarre(fret) {
+    function setDetectorBarreFret(fret) {
       const openMidis = getOpenStringsMidi();
       state.detectorFrets = new Array(openMidis.length).fill(fret);
       renderFretboardDetector();
       playDetectedChord();
     }
 
-    function toggleDetectorStringMute(sIdx) {
-      state.detectorFrets[sIdx] = state.detectorFrets[sIdx] === -1 ? 0 : -1;
-      if (state.detectorFrets[sIdx] === -1) playPercussiveMute(0, 0.22);
-      else playPluckNote(getOpenStringsMidi()[sIdx], 0, 0.7, 0.22);
-      renderFretboardDetector();
-    }
-
-    function toggleDetectorFret(sIdx, fret) {
+    function setDetectorCell(sIdx, fret) {
+      const openMidis = getOpenStringsMidi();
+      if (state.detectorFrets.length !== openMidis.length) {
+        state.detectorFrets = new Array(openMidis.length).fill(0);
+      }
       if (state.detectorFrets[sIdx] === fret) {
         state.detectorFrets[sIdx] = -1;
         playPercussiveMute(0, 0.22);
       } else {
         state.detectorFrets[sIdx] = fret;
-        const om = getOpenStringsMidi()[sIdx];
-        playPluckNote(om + fret, 0, 0.9, 0.24);
+        playPluckNote(openMidis[sIdx] + fret, 0, 0.9, 0.24);
       }
       renderFretboardDetector();
     }
 
-    function resetFretboardDetector() {
-      state.detectorFrets = new Array(getOpenStringsMidi().length).fill(0);
-      renderFretboardDetector();
-    }
-
-    function identifyDetectedChord() {
+    function detectChordFromFrets() {
       const openMidis = getOpenStringsMidi();
-      const activePairs = state.detectorFrets
-        .map((f, i) => ({ f, midi: openMidis[i] + f, sIdx: i }))
-        .filter(x => x.f >= 0);
-      const pcs = [...new Set(activePairs.map(x => x.midi % 12))];
+      const sounding = [];
+      state.detectorFrets.forEach((f, sIdx) => {
+        if (typeof f === 'number' && f >= 0 && openMidis[sIdx] !== undefined) {
+          sounding.push({ midi: openMidis[sIdx] + f, pc: (openMidis[sIdx] + f) % 12 });
+        }
+      });
+      if (!sounding.length) return null;
+      sounding.sort((a, b) => a.midi - b.midi);
+      const uniquePcs = [...new Set(sounding.map(x => x.pc))];
+      const bassPc = sounding[0].pc;
 
-      let best = '--';
-      for (const rootPc of pcs) {
-        for (const [suffix, ivs] of Object.entries(CHORD_INTERVALS)) {
-          const chordPcs = ivs.map(iv => (rootPc + iv) % 12);
-          if (pcs.every(p => chordPcs.includes(p)) && chordPcs.every(p => pcs.includes(p))) {
-            best = suffix === 'maj' ? NOTES_SHARP[rootPc] : NOTES_SHARP[rootPc] + suffix;
-            break;
+      let best = null;
+      for (const rootPc of uniquePcs) {
+        const rel = new Set(uniquePcs.map(pc => (pc - rootPc + 12) % 12));
+        for (const [suf, ivs] of Object.entries(CHORD_INTERVALS)) {
+          const ivSet = new Set(ivs);
+          let matched = 0;
+          rel.forEach(r => { if (ivSet.has(r)) matched++; });
+          let extra = 0;
+          rel.forEach(r => { if (!ivSet.has(r)) extra++; });
+          let missing = 0;
+          ivSet.forEach(iv => { if (!rel.has(iv)) missing++; });
+          let score = matched * 20 - extra * 18 - missing * 10;
+          if (rootPc === bassPc) score += 12;
+          if (!best || score > best.score) {
+            const rootName = NOTES_SHARP[rootPc];
+            const display = suf === 'maj' ? rootName : rootName + suf;
+            best = { display, rootName, suffix: suf, score, pcs: uniquePcs };
           }
         }
-        if (best !== '--') break;
       }
-
-      state.detectedChordName = best;
-      const bestLatin = best !== '--' ? chordToLatin(best) : '';
-      const badgesWrap = document.getElementById('detector-notes-badges');
-      const infoWrap = document.getElementById('detector-chord-info');
-      if (badgesWrap) {
-        badgesWrap.innerHTML = `<span class="px-3.5 py-2 rounded-full text-xs font-extrabold bg-amber-500 text-stone-950">${best}${bestLatin ? ` <em class="font-semibold opacity-80">(${bestLatin})</em>` : ''}</span>` +
-          pcs.map(pc => `<span class="px-3 py-2 rounded-full text-xs font-extrabold th-subcard border th-accent">${NOTES_SHARP[pc]} <em class="font-normal opacity-75">(${noteToLatin(NOTES_SHARP[pc])})</em></span>`).join('');
-      }
-      if (infoWrap) {
-        const fretsStr = state.detectorFrets.map(f => (f === -1 ? 'X' : f)).join(' - ');
-        infoWrap.innerHTML = `
-          <div><strong class="th-accent">Acorde detectado: ${best}${bestLatin ? ` <em class="font-normal th-muted">(${bestLatin})</em>` : ''}</strong> • Trastes: <span class="font-mono-code">${fretsStr}</span></div>
-          <div class="th-muted">Notas activas: ${pcs.length ? pcs.map(p => `${NOTES_SHARP[p]} (${noteToLatin(NOTES_SHARP[p])})`).join(' - ') : 'Todas las cuerdas mudas'}</div>
-        `;
-      }
+      return best;
     }
 
     function playDetectedChord() {
-      playChordStrum(state.detectorFrets, 0, 'down', 1.1, 0.24);
+      const openMidis = getOpenStringsMidi();
+      state.detectorFrets.forEach((f, idx) => {
+        if (typeof f === 'number' && f >= 0 && openMidis[idx] !== undefined) {
+          playPluckNote(openMidis[idx] + f, idx * 0.02, 1.0, 0.22);
+        }
+      });
     }
 
     function addDetectedChordToBase() {
-      const name = state.detectedChordName;
-      if (!name || name === '--') return;
-      appendChordTokenWithAutoFraction(name);
+      const det = detectChordFromFrets();
+      if (!det) return;
+      appendChordTokenWithAutoFraction(det.display);
       switchTab('componer');
+      showToast(`✅ ${det.display} añadido a la Rueda Base`);
     }
 
-    // Modos y escalas con subida, bajada e iluminación individual
-    let scalePlayTimers = [];
-    let isScalePlaying = false;
+    function renderFretboardDetector() {
+      const wrap = document.getElementById('fretboard-detector-wrap');
+      const badges = document.getElementById('detector-notes-badges');
+      const info = document.getElementById('detector-chord-info');
+      if (!wrap) return;
 
-    function stopScalePlayback() {
-      scalePlayTimers.forEach(t => clearTimeout(t));
-      scalePlayTimers = [];
-      isScalePlaying = false;
-      document.querySelectorAll('.scale-cell-playing').forEach(el => el.classList.remove('scale-cell-playing'));
-      const btn = document.getElementById('btn-play-scale');
-      if (btn) btn.textContent = '▶ Escuchar Escala';
+      const openMidis = getOpenStringsMidi();
+      if (state.detectorFrets.length !== openMidis.length) {
+        state.detectorFrets = new Array(openMidis.length).fill(0);
+      }
+      const maxFret = INSTRUMENTS[state.inst]?.maxFret || 12;
+      const detected = detectChordFromFrets();
+
+      if (badges) {
+        const pcs = detected ? detected.pcs : [];
+        badges.innerHTML = pcs.map(pc => {
+          const n = NOTES_SHARP[pc];
+          return `<span class="px-2.5 py-1 rounded-full bg-amber-500/15 border border-amber-500/40 text-xs font-bold th-accent">${n} <em class="font-normal th-muted">(${noteToLatin(n)})</em></span>`;
+        }).join('') || `<span class="text-xs th-muted">Todas las cuerdas mudas</span>`;
+      }
+
+      if (info) {
+        if (detected) {
+          info.innerHTML = `
+            <div class="flex flex-wrap items-baseline justify-between gap-2">
+              <div>Acorde detectado: <strong class="text-base font-serif-title th-accent">${detected.display}</strong> <em class="th-muted">(${chordToLatin(detected.display)})</em></div>
+              <span class="font-mono-code th-muted">Trastes: [${state.detectorFrets.map(f => f < 0 ? 'X' : f).join(' - ')}]</span>
+            </div>
+          `;
+        } else {
+          info.innerHTML = `<div class="th-muted">Activa alguna cuerda en el mástil para identificar el acorde.</div>`;
+        }
+      }
+
+      let html = `<table class="w-full border-collapse text-center font-mono-code text-xs"><thead><tr><th class="p-1.5 text-left th-muted">Cuerda</th>`;
+      for (let f = 0; f <= maxFret; f++) {
+        html += `<th class="p-1"><button type="button" onclick="setDetectorBarreFret(${f})" title="Cejilla en traste ${f}" class="w-7 h-6 rounded hover:bg-amber-500/20 th-muted hover:text-amber-400 font-bold">${f}</button></th>`;
+      }
+      html += `</tr></thead><tbody>`;
+
+      for (let s = openMidis.length - 1; s >= 0; s--) {
+        const isMuted = state.detectorFrets[s] === -1;
+        html += `<tr class="border-t" style="border-color: var(--border-main);">
+          <td class="p-1.5 text-left whitespace-nowrap">
+            <button type="button" onclick="toggleDetectorStringMute(${s})" class="px-2 py-1 rounded-lg th-input border text-[11px] font-bold ${isMuted ? 'text-rose-400 border-rose-500/50' : 'th-accent'}">
+              ${isMuted ? '✕' : '🔊'} ${midiToNote(openMidis[s])}
+            </button>
+          </td>`;
+        for (let f = 0; f <= maxFret; f++) {
+          const active = state.detectorFrets[s] === f;
+          const noteName = NOTES_SHARP[(openMidis[s] + f) % 12];
+          html += `<td class="p-1">
+            <button type="button" onclick="setDetectorCell(${s}, ${f})" class="w-7 h-7 rounded-full border text-[11px] font-bold transition-all ${
+              active ? 'bg-amber-500 text-stone-950 border-amber-400 scale-110' : 'th-subcard border-stone-700/60 th-muted hover:border-amber-500'
+            }">${noteName}</button>
+          </td>`;
+        }
+        html += `</tr>`;
+      }
+      html += `</tbody></table>`;
+      wrap.innerHTML = html;
     }
+
+    let scalePlayTimer = null;
 
     function initModeSelectors() {
       const rootSel = document.getElementById('mode-root-select');
       if (rootSel && !rootSel.options.length) {
-        rootSel.innerHTML = NOTES_SHARP.map(n => `<option value="${n}">${n}</option>`).join('');
-        rootSel.value = 'D';
+        rootSel.innerHTML = NOTES_SHARP.map(n => `<option value="${n}">${n} (${noteToLatin(n)})</option>`).join('');
+        rootSel.value = getCurrentKeyRoot();
       }
-      renderModeFretboard();
-    }
-
-    function selectModeRootFromBadge(note) {
-      stopScalePlayback();
-      const rootSel = document.getElementById('mode-root-select');
-      if (rootSel) rootSel.value = note;
-      const pc = NOTES_SHARP.indexOf(note);
-      if (pc >= 0) playPluckNote(60 + pc, 0, 0.85, 0.25);
       renderModeFretboard();
     }
 
     function renderModeFretboard() {
-      stopScalePlayback();
       const rootSel = document.getElementById('mode-root-select');
       const scaleSel = document.getElementById('mode-scale-select');
-      const badgesWrap = document.getElementById('mode-notes-badges');
-      const infoWrap = document.getElementById('mode-scale-info');
-      const boardWrap = document.getElementById('mode-fretboard-wrap');
-      if (!rootSel || !scaleSel || !boardWrap) return;
+      const wrap = document.getElementById('mode-fretboard-wrap');
+      const badges = document.getElementById('mode-notes-badges');
+      const info = document.getElementById('mode-scale-info');
+      if (!rootSel || !scaleSel || !wrap) return;
 
       const root = rootSel.value || 'D';
       const scaleKey = scaleSel.value || 'mixolydian';
-      const scaleObj = SCALES_DATA[scaleKey] || SCALES_DATA.mixolydian;
+      const scale = SCALES_DATA[scaleKey] || SCALES_DATA.mixolydian;
       const rootPc = NOTES_SHARP.indexOf(root);
-      const scalePcs = scaleObj.intervals.map(iv => (rootPc + iv) % 12);
+      const scalePcs = scale.intervals.map(iv => (rootPc + iv) % 12);
+      const pcToDegree = new Map();
+      scalePcs.forEach((pc, idx) => pcToDegree.set(pc, scale.degrees[idx]));
 
-      if (badgesWrap) {
-        badgesWrap.innerHTML = scalePcs.map((pc, idx) => {
-          const note = NOTES_SHARP[pc];
-          const isRoot = idx === 0;
-          return `<button type="button" onclick="selectModeRootFromBadge('${note}')" class="px-3.5 py-2 rounded-full text-xs font-extrabold transition-transform hover:scale-105 ${isRoot ? 'bg-amber-500 text-stone-950' : 'th-subcard border th-accent'}">${note}</button>`;
+      if (badges) {
+        badges.innerHTML = scalePcs.map((pc, idx) => {
+          const n = NOTES_SHARP[pc];
+          return `<span class="px-2.5 py-1 rounded-full ${idx === 0 ? 'bg-amber-500 text-stone-950' : 'bg-amber-500/15 border border-amber-500/40 th-accent'} text-xs font-bold">${scale.degrees[idx]}: ${n} <em class="font-normal opacity-80">(${noteToLatin(n)})</em></span>`;
         }).join('');
       }
 
-      if (infoWrap) {
-        infoWrap.innerHTML = `
-          <div><strong class="th-accent">${root} ${scaleObj.name}</strong> • Grados: <span class="font-mono-code">${scaleObj.degrees.join(' - ')}</span></div>
-          <div class="th-muted">${scaleObj.desc}</div>
-          <div><strong>Estilos habituales:</strong> <span class="th-accent">${scaleObj.styles}</span></div>
+      if (info) {
+        info.innerHTML = `
+          <div><strong class="th-accent">${root} (${noteToLatin(root)}) ${scale.name}</strong> — ${scale.desc}</div>
+          <div class="th-muted">Estilos: <strong>${scale.styles}</strong></div>
         `;
       }
 
       const openMidis = getOpenStringsMidi();
-      const maxFret = (INSTRUMENTS[state.inst]?.maxFret) || 12;
-      let html = `<table class="w-full text-center border-collapse text-xs font-mono-code"><thead><tr><th class="p-1.5 th-muted">Cuerda</th>`;
-      for (let f = 0; f <= maxFret; f++) html += `<th class="p-1.5 th-muted">${f}</th>`;
+      const maxFret = INSTRUMENTS[state.inst]?.maxFret || 12;
+      let html = `<table class="w-full border-collapse text-center font-mono-code text-xs"><thead><tr><th class="p-1.5 text-left th-muted">Cuerda</th>`;
+      for (let f = 0; f <= maxFret; f++) html += `<th class="p-1 th-muted">${f}</th>`;
       html += `</tr></thead><tbody>`;
 
-      openMidis.forEach((om, sIdx) => {
-        html += `<tr class="border-t" style="border-color: var(--border-main);"><td class="p-2 font-bold th-accent">${midiToNote(om)}</td>`;
+      for (let s = openMidis.length - 1; s >= 0; s--) {
+        html += `<tr class="border-t" style="border-color: var(--border-main);">
+          <td class="p-1.5 text-left font-bold th-accent whitespace-nowrap">${midiToNote(openMidis[s])}</td>`;
         for (let f = 0; f <= maxFret; f++) {
-          const midi = om + f;
+          const midi = openMidis[s] + f;
           const pc = midi % 12;
-          const inScale = scalePcs.includes(pc);
+          const inScale = pcToDegree.has(pc);
           const isRoot = pc === rootPc;
-          const note = NOTES_SHARP[pc];
-          html += `<td class="p-1">${
-            inScale
-              ? `<button id="scale-cell-${sIdx}-${f}" data-midi="${midi}" type="button" onclick="playPluckNote(${midi}, 0, 0.9, 0.24)" class="w-8 h-8 rounded-full font-extrabold transition-all ${isRoot ? 'bg-amber-500 text-stone-950' : 'bg-amber-500/20 border border-amber-500/50 th-accent'}">${note}</button>`
-              : `<span class="text-[10px] opacity-25">·</span>`
-          }</td>`;
+          const noteName = NOTES_SHARP[pc];
+          html += `<td class="p-1">
+            ${inScale
+              ? `<button id="mode-cell-${s}-${f}" type="button" onclick="playPluckNote(${midi}, 0, 0.9, 0.24)" class="w-7 h-7 rounded-full border text-[11px] font-bold transition-all ${
+                  isRoot ? 'bg-amber-500 text-stone-950 border-amber-400' : 'th-subcard border-amber-500/50 th-accent hover:bg-amber-500/20'
+                }">${noteName}</button>`
+              : `<span class="inline-block w-7 h-7 leading-7 text-[10px] opacity-25">·</span>`
+            }
+          </td>`;
         }
         html += `</tr>`;
-      });
+      }
       html += `</tbody></table>`;
-      boardWrap.innerHTML = html;
+      wrap.innerHTML = html;
     }
 
     function playCurrentScale() {
-      if (isScalePlaying) {
-        stopScalePlayback();
+      const btn = document.getElementById('btn-play-scale');
+      if (scalePlayTimer) {
+        clearInterval(scalePlayTimer);
+        scalePlayTimer = null;
+        document.querySelectorAll('.scale-cell-playing').forEach(el => el.classList.remove('scale-cell-playing'));
+        if (btn) btn.textContent = '▶ Escuchar Escala';
         return;
       }
+
       const root = document.getElementById('mode-root-select')?.value || 'D';
       const scaleKey = document.getElementById('mode-scale-select')?.value || 'mixolydian';
-      const scaleObj = SCALES_DATA[scaleKey] || SCALES_DATA.mixolydian;
-      const openMidis = getOpenStringsMidi();
-      const maxFret = (INSTRUMENTS[state.inst]?.maxFret) || 12;
+      const scale = SCALES_DATA[scaleKey] || SCALES_DATA.mixolydian;
       const rootPc = NOTES_SHARP.indexOf(root);
+      const scalePcs = new Set(scale.intervals.map(iv => (rootPc + iv) % 12));
+      const openMidis = getOpenStringsMidi();
+      const maxFret = INSTRUMENTS[state.inst]?.maxFret || 12;
 
-      const minMidi = Math.min(...openMidis);
-      let startMidi = minMidi;
-      while (startMidi % 12 !== rootPc) startMidi++;
-
-      const ascMidis = [...scaleObj.intervals, 12].map(iv => startMidi + iv);
-      const seqMidis = [...ascMidis, ...ascMidis.slice(0, -1).reverse()];
-
-      const findCellForMidi = (targetMidi) => {
-        let best = null;
-        openMidis.forEach((om, sIdx) => {
-          const f = targetMidi - om;
-          if (f >= 0 && f <= maxFret) {
-            if (!best || f < best.f) best = { sIdx, f };
+      const byMidi = new Map();
+      for (let s = 0; s < openMidis.length; s++) {
+        for (let f = 0; f <= maxFret; f++) {
+          const midi = openMidis[s] + f;
+          if (scalePcs.has(midi % 12) && !byMidi.has(midi)) {
+            byMidi.set(midi, { s, f, midi });
           }
-        });
-        if (!best) {
-          const pc = ((targetMidi % 12) + 12) % 12;
-          openMidis.forEach((om, sIdx) => {
-            for (let f = 0; f <= maxFret; f++) {
-              if ((om + f) % 12 === pc && (!best || f < best.f)) {
-                best = { sIdx, f };
-                break;
-              }
-            }
-          });
         }
-        return best;
-      };
+      }
+      const asc = [...byMidi.values()].sort((a, b) => a.midi - b.midi).slice(0, 12);
+      if (!asc.length) return;
+      const seq = asc.concat(asc.slice(0, -1).reverse());
 
-      isScalePlaying = true;
-      const btn = document.getElementById('btn-play-scale');
       if (btn) btn.textContent = '■ Parar Escala';
-
-      const stepMs = 240;
-      seqMidis.forEach((midi, idx) => {
-        const timer = setTimeout(() => {
-          if (!isScalePlaying) return;
-          document.querySelectorAll('.scale-cell-playing').forEach(el => el.classList.remove('scale-cell-playing'));
-          const cellPos = findCellForMidi(midi);
-          if (cellPos) {
-            document.getElementById(`scale-cell-${cellPos.sIdx}-${cellPos.f}`)?.classList.add('scale-cell-playing');
-          }
-          playPluckNote(midi, 0, 0.55, 0.25);
-        }, idx * stepMs);
-        scalePlayTimers.push(timer);
-      });
-
-      const endTimer = setTimeout(() => {
-        stopScalePlayback();
-      }, seqMidis.length * stepMs + 220);
-      scalePlayTimers.push(endTimer);
+      let idx = 0;
+      const step = () => {
+        document.querySelectorAll('.scale-cell-playing').forEach(el => el.classList.remove('scale-cell-playing'));
+        if (idx >= seq.length) {
+          clearInterval(scalePlayTimer);
+          scalePlayTimer = null;
+          if (btn) btn.textContent = '▶ Escuchar Escala';
+          return;
+        }
+        const cur = seq[idx++];
+        document.getElementById(`mode-cell-${cur.s}-${cur.f}`)?.classList.add('scale-cell-playing');
+        playPluckNote(cur.midi, 0, 0.55, 0.25);
+      };
+      step();
+      scalePlayTimer = setInterval(step, 280);
     }
 
     // =========================================================================
-    // 10B. IMPORTADOR DE VERSIONES (BUSCADOR WEB, LINK URL Y PARSER LOCAL)
+    // 10C. IMPORTADOR DE VERSIONES (BUSCADOR / LINK URL / TEXTO)
     // =========================================================================
     let importerDraft = null;
 
     function openVersionImporterModal(defaultTab = 'search') {
-      const modal = document.getElementById('version-importer-modal');
-      if (!modal) return;
-      modal.classList.remove('hidden');
       switchImporterTab(defaultTab);
-      if (defaultTab === 'search') {
-        setTimeout(() => document.getElementById('imp-search-query')?.focus(), 50);
-      } else if (defaultTab === 'url') {
-        setTimeout(() => document.getElementById('imp-url-input')?.focus(), 50);
-      }
+      setImporterStatus(false);
+      document.getElementById('version-importer-modal')?.classList.remove('hidden');
     }
 
     function closeVersionImporterModal() {
@@ -4599,14 +4804,15 @@
 
     function switchImporterTab(tab) {
       ['search', 'url', 'paste'].forEach(t => {
-        const panel = document.getElementById(`imp-panel-${t}`);
         const btn = document.getElementById(`imp-tab-btn-${t}`);
-        if (panel) panel.classList.toggle('hidden', t !== tab);
+        const panel = document.getElementById(`imp-panel-${t}`);
+        const active = t === tab;
         if (btn) {
-          btn.className = t === tab
+          btn.className = active
             ? 'py-2 px-2 rounded-xl bg-amber-500 text-stone-950 text-xs font-extrabold'
             : 'py-2 px-2 rounded-xl th-input border text-xs font-bold';
         }
+        if (panel) panel.classList.toggle('hidden', !active);
       });
     }
 
@@ -4787,7 +4993,7 @@
             style: state.song.base.style || 'folk',
             timeSig: state.song.base.timeSig || '4/4',
             bpm: Number(state.song.base.bpm) || 112,
-            lyrics: s.lyrics.slice(0, 4).join(' / ')
+            lyrics: s.lyrics.join('\n')
           };
         });
 
@@ -4868,7 +5074,7 @@
           style: allowedStyles.includes(s.style) ? s.style : style,
           timeSig: allowedTs.includes(s.timeSig) ? s.timeSig : timeSig,
           bpm: Math.max(40, Math.min(260, parseInt(s.bpm, 10) || bpm)),
-          lyrics: String(s.lyrics || '').trim().slice(0, 220),
+          lyrics: String(s.lyrics || '').trim(),
           selected: true
         };
       }).filter(s => s.chordsText && s.chordsText !== 'NC');
@@ -5206,6 +5412,7 @@
       loadLocalState();
       document.getElementById('inst-select').value = state.inst;
       populateTuningsSelect();
+      populateQuickChordSelect();
       document.getElementById('transpose-lbl').textContent = `${state.transpose > 0 ? '+' : ''}${state.transpose} st`;
       if (state.theme === 'light') {
         const svg = document.getElementById('bulb-svg');
