@@ -1717,7 +1717,7 @@
         const params = new URLSearchParams({
           action: 'getAudioTake',
           takeId: take.id || '',
-          fileName: take.name || '',
+          fileName: take.originalFileName || take.name || '',
           songTitle: state.song.title || '',
           t: String(Date.now())
         });
@@ -1749,8 +1749,9 @@
         const resolvedFileId = extractDriveFileId(take.driveUrl) || take.driveFileId || '';
         if (!resolvedFileId) {
           take._missingDriveId = true;
+          take._linkingDrive = true;
           renderSongTakesList();
-          showToast('⚠️ No se encontró el archivo en Drive; súbelo de nuevo desde el dispositivo original');
+          showToast('⚠️ Pega el enlace del archivo de Google Drive para vincular el Play');
           return;
         }
         const directStreamUrl = `https://docs.google.com/uc?export=open&id=${encodeURIComponent(resolvedFileId)}`;
@@ -1762,6 +1763,48 @@
           setTimeout(() => document.getElementById(`take-audio-${id}`)?.play().catch(() => {}), 60);
         }
       }
+    }
+
+    function startLinkDriveTake(id) {
+      const take = (state.song.takes || []).find(t => t.id === id);
+      if (!take) return;
+      take._linkingDrive = true;
+      renderSongTakesList();
+      setTimeout(() => {
+        const inp = document.getElementById(`take-drive-inp-${id}`);
+        if (inp) {
+          inp.focus();
+          inp.select();
+        }
+      }, 20);
+    }
+
+    function cancelLinkDriveTake(id) {
+      const take = (state.song.takes || []).find(t => t.id === id);
+      if (!take) return;
+      delete take._linkingDrive;
+      renderSongTakesList();
+    }
+
+    function saveLinkDriveTake(id) {
+      const take = (state.song.takes || []).find(t => t.id === id);
+      if (!take) return;
+      const inp = document.getElementById(`take-drive-inp-${id}`);
+      const val = (inp ? inp.value : '').trim();
+      const extracted = extractDriveFileId(val) || (/^[a-zA-Z0-9_-]{15,}$/.test(val) ? val : '');
+      if (!extracted) {
+        showToast('⚠️ Pega un enlace válido de Google Drive (con /d/ID/...)');
+        return;
+      }
+      take.driveFileId = extracted;
+      take.driveUrl = `https://drive.google.com/file/d/${extracted}/view`;
+      delete take._linkingDrive;
+      delete take._missingDriveId;
+      delete take._streamBlocked;
+      saveLocalState();
+      saveCurrentProject(true, false);
+      renderSongTakesList();
+      loadAndPlayDriveTake(id, true);
     }
 
     function handleTakeAudioError(id) {
@@ -1941,6 +1984,7 @@
         const cleanTakes = (state.song.takes || []).map(t => ({
           id: t.id,
           name: t.name,
+          originalFileName: t.originalFileName || t.name,
           author: t.author,
           duration: t.duration,
           createdAt: t.createdAt,
@@ -4523,6 +4567,7 @@
         state.song.takes.unshift({
           id,
           name: f.name,
+          originalFileName: f.name,
           author: state.currentUser?.name || 'Culto',
           duration: '--:--',
           url: URL.createObjectURL(f),
@@ -4551,8 +4596,9 @@
           reader.onerror = reject;
           reader.readAsDataURL(blob);
         });
-        const ext = /\.m4a$/i.test(take.name) ? '' : (/\.mp3$/i.test(take.name) ? '' : (/\.wav$/i.test(take.name) ? '' : '.webm'));
-        const uploadFileName = `${state.song.title}_${take.name}${ext}`;
+        const baseName = take.originalFileName || take.name;
+        const ext = /\.m4a$/i.test(baseName) ? '' : (/\.mp3$/i.test(baseName) ? '' : (/\.wav$/i.test(baseName) ? '' : '.webm'));
+        const uploadFileName = `${state.song.title}_${baseName}${ext}`;
         const res = await fetch(GAS_WEBAPP_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -4625,6 +4671,7 @@
       }
       const esc = (v) => String(v || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
       list.innerHTML = takes.map(t => {
+        const hasRealDriveId = Boolean(extractDriveFileId(t.driveUrl) || t.driveFileId);
         return `
         <div class="th-card border rounded-xl p-2.5 space-y-1.5 text-xs">
           ${t._renaming ? `
@@ -4639,6 +4686,13 @@
               <span class="font-mono-code text-[11px] th-muted shrink-0">${esc(t.duration || '')}</span>
             </div>
           `}
+          ${t._linkingDrive ? `
+            <form onsubmit="event.preventDefault(); saveLinkDriveTake('${t.id}');" class="flex items-center gap-1.5">
+              <input id="take-drive-inp-${t.id}" type="text" placeholder="Pega enlace de Drive (https://drive.google.com/file/d/...)" value="${hasRealDriveId ? esc(t.driveUrl) : ''}" onkeydown="if(event.key==='Escape'){event.preventDefault();cancelLinkDriveTake('${t.id}');}" class="flex-1 th-input border rounded-lg px-2 py-1 text-[11px] font-mono-code focus:outline-none focus:border-amber-500" />
+              <button type="submit" class="bg-emerald-600 hover:bg-emerald-500 text-white px-2.5 py-1 rounded-lg font-bold">✓</button>
+              <button type="button" onclick="cancelLinkDriveTake('${t.id}')" class="th-input border px-2 py-1 rounded-lg font-bold">✕</button>
+            </form>
+          ` : ''}
           ${t.url
             ? `<audio id="take-audio-${t.id}" controls preload="auto" onerror="handleTakeAudioError('${t.id}')" src="${esc(t.url)}" class="w-full h-8"></audio>`
             : (t.driveUrl
@@ -4646,13 +4700,14 @@
                   <button type="button" onclick="loadAndPlayDriveTake('${t.id}', true)" ${t._loadingDrive ? 'disabled' : ''} class="w-full bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-stone-950 font-extrabold py-2 px-3 rounded-xl text-xs flex items-center justify-center gap-2">
                     <span>${t._loadingDrive ? '⏳ Cargando audio de Drive...' : '▶ Reproducir Audio de Drive'}</span>
                   </button>
-                  ${t._missingDriveId ? `<div class="text-[11px] text-amber-400 text-center">⚠️ Este audio se subió antes de guardar el ID de archivo. Súbelo de nuevo desde el móvil para vincular su enlace directo.</div>` : ''}
-                  ${t._streamBlocked ? `<div class="text-[11px] text-amber-400 text-center">⚠️ Google Drive requiere abrir el enlace <strong>↗ Drive</strong> en una pestaña (o compartir el archivo como "Cualquier persona con el enlace").</div>` : ''}
+                  ${t._missingDriveId ? `<div class="text-[11px] text-amber-400 text-center">⚠️ Tu script de Google Drive guardó el archivo sin devolver su ID. Pega arriba el enlace de Drive del archivo (o súbelo desde el móvil) para activar el Play.</div>` : ''}
+                  ${t._streamBlocked ? `<div class="text-[11px] text-amber-400 text-center">⚠️ Google Drive requiere compartir el archivo como <strong>"Cualquier persona con el enlace"</strong> para reproducirlo aquí, o abrirlo con <strong>↗ Drive</strong>.</div>` : ''}
                 </div>`
               : `<div class="text-[11px] th-muted">Audio no disponible en este dispositivo</div>`)
           }
           <div class="flex flex-wrap items-center justify-end gap-1.5">
             <button type="button" onclick="startRenameTake('${t.id}')" class="th-input border hover:border-amber-500 px-2.5 py-1 rounded-lg font-bold">✎ Renombrar</button>
+            <button type="button" onclick="startLinkDriveTake('${t.id}')" class="th-input border hover:border-amber-500 px-2.5 py-1 rounded-lg font-bold">🔗 Enlazar Drive</button>
             ${t.driveUrl
               ? `<a href="${esc(t.driveUrl)}" target="_blank" rel="noopener" class="px-2.5 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/35 text-emerald-400 font-bold">↗ Drive</a>`
               : `<button type="button" onclick="uploadTakeToDrive('${t.id}')" class="th-input border hover:border-amber-500 px-2.5 py-1 rounded-lg font-bold">☁️ Subir a Drive</button>`
@@ -5078,6 +5133,7 @@
       cleanSong.takes = (cleanSong.takes || []).map(t => ({
         id: t.id,
         name: t.name,
+        originalFileName: t.originalFileName || t.name,
         author: t.author,
         duration: t.duration,
         createdAt: t.createdAt,
